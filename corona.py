@@ -1,5 +1,4 @@
 import logging
-import json
 import asyncio
 import aiohttp # pip install aiohttp OPTIONAL: pip install aiodns
 
@@ -26,9 +25,12 @@ class Connector:
         )
         fieldstr = ",".join(fields)
 
-        self.url = "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/RKI_Landkreisdaten/FeatureServer/0/query?where=OBJECTID={}&outFields=" + fieldstr + "&returnGeometry=false&outSR=&f=json"
+        self.url = "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/"\
+            "RKI_Landkreisdaten/FeatureServer/0/query?where=OBJECTID={}&outFields="\
+             + fieldstr + "&returnGeometry=false&outSR=&f=json"
 
-    def parse_answer(self, response_json):
+    @staticmethod
+    def parse_answer(response_json):
         bereich = response_json["features"][0]["attributes"]["GEN"]
         cases7_per_100k = response_json["features"][0]["attributes"]["cases7_per_100k"]
         last_update = response_json["features"][0]["attributes"]["last_update"]
@@ -39,9 +41,8 @@ class Connector:
         logging.info("Url: '%s'", url)
         async with session.get(url) as response:
             response.raise_for_status()
-            text = await response.text()
+            response_json = await response.json(content_type='text/plain')
         logging.debug("%i loaded", region_id)
-        response_json = json.loads(text)
         return self.parse_answer(response_json)
 
     async def get_cases(self, region_ids):
@@ -70,14 +71,14 @@ if __name__ == "__main__":
         # level=logging.DEBUG,
         format='%(asctime)s %(name)-22s %(levelname)-8s %(message)s',
     )
-    
-    region_ids = (
-        27, # Hannover
-        3,  # Lübeck 
-        16, # Hamburg
-        19, # Wolfsburg
-        87, # Oberbergischer Kreis
-        80, # Köln
+
+    REGION_IDS = (
+        27,  # Hannover
+        3,   # Lübeck
+        16,  # Hamburg
+        19,  # Wolfsburg
+        87,  # Oberbergischer Kreis
+        80,  # Köln
         413, # Berlin Mitte
     )
-    asyncio.run(main(region_ids))
+    asyncio.run(main(REGION_IDS))
