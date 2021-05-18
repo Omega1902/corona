@@ -12,4 +12,8 @@ Das skript wurde mit python 3.9 getestet. Das aiohttp modul wird zusätzlich ben
 
 ## Danksagung
 
-Danke für das Heise Team, die in ihrer CT Zeitschrift die API erklärt haben
+Danke für das Heise Team, die in ihrer CT Zeitschrift die API erklärt haben. [PHP-Beispiel](http://ct.de/yw1c)
+
+## Lizenz
+
+Dieses Projekt steht unter der GPL
