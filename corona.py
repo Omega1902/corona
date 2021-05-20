@@ -28,6 +28,8 @@ class Connector:
         self.url = "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/"\
             "RKI_Landkreisdaten/FeatureServer/0/query?where=OBJECTID={}&outFields="\
              + fieldstr + "&returnGeometry=false&outSR=&f=json"
+        
+        self._session = None
 
     @staticmethod
     def parse_answer(response_json):
@@ -36,10 +38,10 @@ class Connector:
         last_update = response_json["features"][0]["attributes"]["last_update"]
         return bereich, cases7_per_100k, last_update
 
-    async def get_case(self, region_id, session):
+    async def get_case(self, region_id):
         url = self.url.format(region_id)
         logging.info("Url: '%s'", url)
-        async with session.get(url) as response:
+        async with self._session.get(url) as response:
             response.raise_for_status()
             response_json = await response.json(content_type='text/plain')
         logging.debug("%i loaded", region_id)
@@ -47,10 +49,18 @@ class Connector:
 
     async def get_cases(self, region_ids):
         tasks = []
-        async with aiohttp.ClientSession() as session:
-            for region_id in region_ids:
-                tasks.append(self.get_case(region_id, session))
-            return await asyncio.gather(*tasks)
+        for region_id in region_ids:
+            tasks.append(self.get_case(region_id))
+        return await asyncio.gather(*tasks)
+
+    async def __aenter__(self) -> "Connector":
+        self._session = aiohttp.ClientSession()
+        await self._session.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        await self._session.__aexit__(exc_type, exc_val, exc_tb)
+        self._session = None
 
 
 def print_result(result):
@@ -61,8 +71,8 @@ def print_result(result):
         assert city[2].startswith(date_string)
 
 async def main(region_ids):
-    con = Connector()
-    result = await con.get_cases(region_ids)
+    async with Connector() as con:
+        result = await con.get_cases(region_ids)
     print_result(result)
 
 
