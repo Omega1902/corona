@@ -1,6 +1,7 @@
 import logging
 from collections import namedtuple
 from collections.abc import Iterable
+import argparse
 import asyncio
 import aiohttp # pip install aiohttp OPTIONAL: pip install aiodns
 
@@ -88,6 +89,20 @@ class Connector:
         self._session = None
 
 
+async def print_result_async(tasks, column1_width=20):
+    date_string = None
+    print_format = "{:" + str(column1_width) + "} {:>8}"
+    for coro in asyncio.as_completed(tasks):
+        city = await coro
+        if date_string is None:
+            date_string = city.updated[0:10]
+            print("Datum: " + date_string)
+            print(print_format.format("Kreis", "Inzidenz"))
+        else:
+            assert city.updated.startswith(date_string)
+        print(print_format.format(city.city_name, f"{city.cases7_per_100k:3.2f}"))
+
+
 def print_result(result: Iterable[CasesResult], print_id: bool = False):
     to_print = []
     date_string = None
@@ -127,17 +142,24 @@ def print_table(headers: list[str], table:list[list[str]]):
     for row in table:
         print(print_format.format(*row))
 
-async def main(region_ids=None):
+async def main(region_ids=None, keep_order=False):
     if region_ids is None:
         async with Connector() as con:
             result = await con.get_all_cases()
         sort_by_name = lambda city: city.city_name
         result.sort(key=sort_by_name)
         print_result(result, True)
-    else:
+    elif keep_order:
         async with Connector() as con:
             result = await con.get_cases(region_ids)
         print_result(result)
+    else:
+        async with Connector() as con:
+            tasks = []
+            for region_id in region_ids:
+                tasks.append(con.get_case(region_id))
+            await print_result_async(tasks)
+
 
 
 if __name__ == "__main__":
@@ -146,7 +168,7 @@ if __name__ == "__main__":
         format='%(asctime)s %(name)-22s %(levelname)-8s %(message)s',
     )
 
-    REGION_IDS = (
+    REGION_IDS_DEFAULT = (
         27,  # Hannover
         3,   # Lübeck
         16,  # Hamburg
@@ -155,4 +177,21 @@ if __name__ == "__main__":
         80,  # Köln
         413, # Berlin Mitte
     )
-    asyncio.run(main(REGION_IDS))
+    PARSER = argparse.ArgumentParser(description='Corona Inzidenzzahlen')
+    PARSER.add_argument("-ids", '--region_ids', type=int, nargs='*',
+                        help='Region Ids für Regionen die geprüft werden sollen. Default verwendet im Skript hintelegte Ids')
+    PARSER.add_argument("-a", '--all', action='store_true',
+                        help='Gibt alle Inzidenzzahlen inkl Region IDs aus. Ignoriert die anderen Parameter.')
+    PARSER.add_argument("-o", '--force_order', action='store_true',
+                        help='Ausgabe ist in der selben Reihenfolge wie die IDs.')
+
+    ARGS = PARSER.parse_args()
+    ALL = ARGS.all
+    FORCE_ORDER = ARGS.force_order
+    REGION_IDS = ARGS.region_ids
+    if not REGION_IDS:
+        REGION_IDS = REGION_IDS_DEFAULT
+    if ALL:
+        REGION_IDS = None
+
+    asyncio.run(main(REGION_IDS, FORCE_ORDER))
