@@ -1,6 +1,6 @@
 import logging
 from collections import namedtuple
-from collections.abc import Iterable
+from typing import Iterable, List
 import argparse
 import asyncio
 import aiohttp # pip install aiohttp OPTIONAL: pip install aiodns
@@ -48,7 +48,7 @@ class Connector:
         return CasesResult(bereich, cases7_per_100k, last_update, region_id)
 
     @staticmethod
-    def parse_answer_all(response_json) -> list[CasesResult]:
+    def parse_answer_all(response_json) -> List[CasesResult]:
         result = []
         for city in response_json["features"]:
             region_id = city["attributes"]["OBJECTID"]
@@ -126,7 +126,7 @@ def print_result(result: Iterable[CasesResult], print_id: bool = False):
         header = ["Landkreis", "Inzidenz"]
         print_table(header, to_print)
 
-def print_table(headers: list[str], table:list[list[str]]):
+def print_table(headers: List[str], table:List[List[str]]):
     print_format = ""
     for i, header in enumerate(headers):
         size = max(len(x[i]) for x in table)
