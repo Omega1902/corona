@@ -178,8 +178,8 @@ if __name__ == "__main__":
         80,  # Köln
     )
     PARSER = argparse.ArgumentParser(description='Corona Inzidenzzahlen')
-    PARSER.add_argument("-ids", '--region_ids', type=int, nargs='*',
-                        help='Region Ids für Regionen die geprüft werden sollen. Default verwendet im Skript hintelegte Ids')
+    PARSER.add_argument("-ids", '--region_ids', type=int, nargs='*', default=REGION_IDS_DEFAULT,
+                        help='Region Ids für Regionen die geprüft werden sollen. Default verwendet im Skript hintelegte Ids.')
     PARSER.add_argument("-a", '--all', action='store_true',
                         help='Gibt alle Inzidenzzahlen inkl Region IDs aus. Ignoriert die anderen Parameter.')
     PARSER.add_argument("-o", '--force_order', action='store_true',
@@ -189,8 +189,6 @@ if __name__ == "__main__":
     ALL = ARGS.all
     FORCE_ORDER = ARGS.force_order
     REGION_IDS = ARGS.region_ids
-    if not REGION_IDS:
-        REGION_IDS = REGION_IDS_DEFAULT
     if ALL:
         REGION_IDS = None
 
