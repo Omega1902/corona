@@ -39,13 +39,11 @@ class Connector:
              + fieldstr + "&returnGeometry=false&outSR=&f=json"
         self._session = None
 
-    @staticmethod
-    def parse_answer(response_json) -> CasesResult:
-        region_id = response_json["features"][0]["attributes"]["OBJECTID"]
-        bereich = response_json["features"][0]["attributes"]["GEN"]
-        cases7_per_100k = response_json["features"][0]["attributes"]["cases7_per_100k"]
-        last_update = response_json["features"][0]["attributes"]["last_update"]
-        return CasesResult(bereich, cases7_per_100k, last_update, region_id)
+    @classmethod
+    def parse_answer(cls, response_json) -> CasesResult:
+        results = cls.parse_answer_all(response_json)
+        assert len(results) == 1
+        return results[0]
 
     @staticmethod
     def parse_answer_all(response_json) -> List[CasesResult]:
