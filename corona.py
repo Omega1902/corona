@@ -167,13 +167,15 @@ if __name__ == "__main__":
     )
 
     REGION_IDS_DEFAULT = (
+        413, # Berlin Mitte
         27,  # Hannover
+        51,  # Aurich
+        7,   # Nordfriesland
         3,   # Lübeck
         16,  # Hamburg
         19,  # Wolfsburg
         87,  # Oberbergischer Kreis
         80,  # Köln
-        413, # Berlin Mitte
     )
     PARSER = argparse.ArgumentParser(description='Corona Inzidenzzahlen')
     PARSER.add_argument("-ids", '--region_ids', type=int, nargs='*',
