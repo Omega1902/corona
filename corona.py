@@ -1,3 +1,4 @@
+import os
 import logging
 from collections import namedtuple
 from typing import Iterable, List
@@ -38,6 +39,14 @@ class Connector:
             "RKI_Landkreisdaten/FeatureServer/0/query?where=1=1&outFields="\
              + fieldstr + "&returnGeometry=false&outSR=&f=json"
         self._session = None
+        self.set_proxy()
+
+    def set_proxy(self):
+        try:
+            self.proxy = os.environ['HTTP_PROXY']
+        except KeyError:
+            self.proxy = None
+            logging.info("Not using Proxy.")
 
     @classmethod
     def parse_answer(cls, response_json) -> CasesResult:
@@ -59,7 +68,7 @@ class Connector:
     async def get_case(self, region_id):
         url = self.url.format(region_id)
         logging.info("Url: '%s'", url)
-        async with self._session.get(url) as response:
+        async with self._session.get(url, proxy=self.proxy) as response:
             response.raise_for_status()
             response_json = await response.json(content_type='text/plain')
         logging.debug("%i loaded", region_id)
