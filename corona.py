@@ -125,16 +125,15 @@ def print_result(result: Iterable[CasesResult], print_id: bool = False):
         print_table(header, to_print)
 
 def print_table(headers: List[str], table:List[List[str]]):
-    print_format = ""
+    print_formats = []
     for i, header in enumerate(headers):
         size = max(len(x[i]) for x in table)
         size = max(size, len(header))
         if i == 0: # First item left binding
-            print_format += '{:' + str(size) + '} '
-        elif i + 1 == len(headers): # Last item right binding
-            print_format += '{:>' + str(size) + '}'
-        else: # all other items centered
-            print_format += '{:^' + str(size) + '} '
+            print_formats.append('{:' + str(size) + '}')
+        else: # all other right binding
+            print_formats.append('{:>' + str(size) + '}')
+    print_format = " ".join(print_formats)
     logging.debug("Format: '%s'", print_format)
     print(print_format.format(*headers))
     for row in table:
