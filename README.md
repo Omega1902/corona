@@ -6,9 +6,11 @@ Aktuell überprüft sehr viele Menschen (so auch ich) annähernd täglich die Co
 
 ## Vorraussetzungen
 
-Das skript wurde mit python 3.9 getestet. Das aiohttp modul wird zusätzlich benötigt.
+Das skript wurde mit python 3.9 getestet. Das aiohttp Modul wird zusätzlich benötigt.
 
 ```pip install aiohttp```
+
+Für corona_histroy.py werden außerdem die Module matplotlib, numpy, pandas und openpyxl benötigt.
 
 ## Danksagung
 

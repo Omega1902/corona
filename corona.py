@@ -38,6 +38,8 @@ class Connector:
         self.url_all = "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/"\
             "RKI_Landkreisdaten/FeatureServer/0/query?where=1=1&outFields="\
              + fieldstr + "&returnGeometry=false&outSR=&f=json"
+        self.url_excel = "https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/"\
+            "Fallzahlen_Kum_Tab.xlsx?__blob=publicationFile"
         self._session = None
         self.set_proxy()
 
@@ -65,10 +67,13 @@ class Connector:
             result.append(CasesResult(bereich, cases7_per_100k, last_update, region_id))
         return result
 
+    def get(self, url):
+        return self._session.get(url, proxy=self.proxy)
+
     async def get_case(self, region_id):
         url = self.url.format(region_id)
         logging.info("Url: '%s'", url)
-        async with self._session.get(url, proxy=self.proxy) as response:
+        async with self.get(url) as response:
             response.raise_for_status()
             response_json = await response.json(content_type='text/plain')
         logging.debug("%i loaded", region_id)
@@ -79,12 +84,18 @@ class Connector:
         for region_id in region_ids:
             tasks.append(self.get_case(region_id))
         return await asyncio.gather(*tasks)
-    
+
     async def get_all_cases(self):
-        async with self._session.get(self.url_all) as response:
+        async with self.get(self.url_all) as response:
             response.raise_for_status()
             response_json = await response.json(content_type='text/plain')
         return self.parse_answer_all(response_json)
+
+    async def get_excel(self):
+        async with self.get(self.url_excel) as response:
+            response.raise_for_status()
+            result = await response.read()
+        return result
 
     async def __aenter__(self) -> "Connector":
         self._session = aiohttp.ClientSession()
@@ -118,7 +129,6 @@ def print_result(result: Iterable[CasesResult], print_id: bool = False):
             date_string = city.updated[0:10]
         else:
             assert city.updated.startswith(date_string)
-        
         temp = []
         if print_id:
             temp.append(city.city_name + f" ({city.region_id})")
@@ -126,14 +136,14 @@ def print_result(result: Iterable[CasesResult], print_id: bool = False):
             temp.append(city.city_name)
         temp.append(f"{city.cases7_per_100k:3.2f}")
         to_print.append(temp)
-    if date_string == None:
+    if date_string is None:
         print("Keine Daten verfügbar")
     else:
         print("Datum: " + date_string)
         header = ["Landkreis", "Inzidenz"]
         print_table(header, to_print)
 
-def print_table(headers: List[str], table:List[List[str]]):
+def print_table(headers: List[str], table: List[List[str]]):
     print_formats = []
     for i, header in enumerate(headers):
         size = max(len(x[i]) for x in table)
