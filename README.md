@@ -6,7 +6,7 @@ Aktuell überprüft sehr viele Menschen (so auch ich) annähernd täglich die Co
 
 ## Vorraussetzungen
 
-Das skript wurde mit python 3.9 getestet. Das aiohttp Modul wird zusätzlich benötigt.
+Das skript wurde mit python 3.7 und 3.9 getestet. Das aiohttp Modul wird zusätzlich benötigt.
 
 ```pip install aiohttp```
 
