@@ -1,4 +1,4 @@
-from typing import Iterable, Tuple, List, Optional
+from typing import Collection, Tuple, List, Optional
 import asyncio
 import pandas as pd # uses openpyxl in background
 import matplotlib.pyplot as plt
@@ -69,7 +69,7 @@ async def get_from_excel():
     title = "Stand: " + x_axis_labels[-1]
     show_graph(graph_data, kreis, x_axis_labels, title, suptitle)
 
-def show_graph(groups: List[List[int]], group_labels: Optional[Iterable[str]] = None, x_axis_labels: Optional[Iterable[str]] = None, title: Optional[str] = None, suptitle: Optional[str] = None):
+def show_graph(groups: List[List[int]], group_labels: Optional[Collection[str]] = None, x_axis_labels: Optional[Collection[str]] = None, title: Optional[str] = None, suptitle: Optional[str] = None):
     size = len(groups)
     assert size > 0, "groups should not be empty"
     if group_labels is not None:
