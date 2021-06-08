@@ -1,11 +1,11 @@
-from typing import Collection, Tuple, List, Optional
+from typing import Collection, Iterable, Tuple, List, Optional
 import asyncio
 import pandas as pd # uses openpyxl in background
 import matplotlib.pyplot as plt
 import numpy as np
 import corona
 
-def read_excel(path, kreise, days = 7):
+def read_excel(path, kreise: Iterable[str], days: int = 7):
     data_frame = pd.read_excel(path, sheet_name='LK_7-Tage-Inzidenz (fixiert)', engine="openpyxl")
 
     result = []
