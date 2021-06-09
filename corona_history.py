@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import corona
 
-def read_excel(path, kreise, days = 14):
+def read_excel(path, kreise, days = 7):
     data_frame = pd.read_excel(path, sheet_name='LK_7-Tage-Inzidenz (fixiert)', engine="openpyxl")
 
     result = []
@@ -57,6 +57,7 @@ async def get_from_excel():
         "SK Wolfsburg",
         "LK Oberbergischer Kreis",
         "SK Köln",
+        "LK Nordfriesland",
     )
 
     async with corona.Connector() as con:
@@ -65,9 +66,8 @@ async def get_from_excel():
     header, table = convert_to_printable_list(dates, inzidenzen_result)
     corona.print_table(header, table)
     x_axis_labels, kreis, graph_data = convert_to_graph_data(dates, inzidenzen_result)
-    suptitle = "7-Tages Inzidenzwerte"
-    title = "Stand: " + x_axis_labels[-1]
-    show_graph(graph_data, kreis, x_axis_labels, title, suptitle)
+    title = "7-Tages Inzidenzwerte, Stand: " + x_axis_labels[-1]
+    show_graph(graph_data, kreis, x_axis_labels, title)
 
 def show_graph(groups: List[List[int]], group_labels: Optional[Collection[str]] = None, x_axis_labels: Optional[Collection[str]] = None, title: Optional[str] = None, suptitle: Optional[str] = None):
     size = len(groups)
@@ -96,6 +96,9 @@ def show_graph(groups: List[List[int]], group_labels: Optional[Collection[str]] 
 
     if suptitle is not None:
         plt.suptitle(suptitle)
+
+    plt.axhline(y=35)
+    plt.axhline(y=50)
 
     # plt.grid(True, which="major" , axis="y")
 
