@@ -2,6 +2,7 @@ from typing import Collection, Tuple, List, Optional
 import asyncio
 import pandas as pd # uses openpyxl in background
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import numpy as np
 import corona
 from landkreise import Landkreise
@@ -56,7 +57,7 @@ def convert_to_printable_list(dates, inzidenzen) -> Tuple[List[str], List[List[s
         table.append(temp)
     return header, table
 
-def convert_to_graph_data(dates, inzidenzen) -> Tuple[List[str], List[str], List[List[int]]]:
+def convert_to_graph_data(dates, inzidenzen) -> Tuple[List[str], List[str], List[List[float]]]:
     axis_labels = [date_obj.strftime("%d.%m.") for date_obj in dates]
     kreis = []
     table = []
@@ -77,11 +78,11 @@ async def get_from_excel(landkreise: Collection[Landkreise]):
     header, table = convert_to_printable_list(dates, inzidenzen_result)
     corona.print_table(header, table)
     x_axis_labels, kreis, graph_data = convert_to_graph_data(dates, inzidenzen_result)
-    germany_inzidenzen = [value for (key, value) in sorted(germany_result.items())]
+    germany_inzidenzen = [value for (_, value) in sorted(germany_result.items())]
     title = "7-Tages Inzidenzwerte, Stand: " + dates[-1].strftime("%d.%m.%Y")
     show_graph(graph_data, kreis, x_axis_labels, title, compare_line=germany_inzidenzen)
 
-def show_graph(groups: List[List[int]], group_labels: Optional[Collection[str]] = None, x_axis_labels: Optional[Collection[str]] = None, title: Optional[str] = None, suptitle: Optional[str] = None, compare_line: Optional[Collection[int]] = None):
+def show_graph(groups: List[List[float]], group_labels: Optional[Collection[str]] = None, x_axis_labels: Optional[Collection[str]] = None, title: Optional[str] = None, suptitle: Optional[str] = None, compare_line: Optional[Collection[float]] = None):
     size = len(groups)
     assert size > 0, "groups should not be empty"
     if group_labels is not None:
@@ -101,7 +102,7 @@ def show_graph(groups: List[List[int]], group_labels: Optional[Collection[str]] 
         plt.xticks(pos, x_axis_labels)
 
     if group_labels is not None:
-        plt.legend(group_labels)
+        plt.gca().add_artist(plt.legend(group_labels, loc='upper right'))
 
     if title is not None:
         plt.title(title)
@@ -112,7 +113,9 @@ def show_graph(groups: List[List[int]], group_labels: Optional[Collection[str]] 
     if compare_line is not None:
         assert len(groups[0]) == len(compare_line), "the ammount of compare lines should match the amount of groups data"
         for i, cur_line in enumerate(compare_line):
-            plt.hlines(y=cur_line, xmin=pos[i] - 0.49, xmax=pos[i] + 0.49)
+            plt.hlines(y=cur_line, xmin=pos[i] - 0.49, xmax=pos[i] + 0.49, colors="black")
+        red_patch = mpatches.Patch(color='black', label='Deutschland')
+        plt.legend(handles=[red_patch], loc='upper left')
 
     plt.axhline(y=35)
     plt.axhline(y=50)
