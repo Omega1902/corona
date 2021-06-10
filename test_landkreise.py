@@ -18,9 +18,13 @@ class TestLandkreise(unittest.TestCase):
         for landkreis in Landkreise:
             self.assertEqual(Landkreise.find_by_id(landkreis.value), landkreis)
 
+        self.assertIsNone(Landkreise.find_by_lk_bez(-1))
+
     def test_find_by_lk_name(self):
         for landkreis in Landkreise:
             self.assertEqual(Landkreise.find_by_lk_bez(landkreis.lk_name), landkreis)
+
+        self.assertIsNone(Landkreise.find_by_lk_bez("DOES NOT EXIST"))
 
     def test_name(self):
         tests = {
