@@ -82,7 +82,7 @@ async def get_from_excel(landkreise: Collection[Landkreise]):
     corona.print_table(header, table)
     x_axis_labels, kreis, graph_data = convert_to_graph_data(dates, inzidenzen_result)
     germany_inzidenzen = [value for (key, value) in sorted(germany_result.items())]
-    title = "7-Tages Inzidenzwerte, Stand: " + x_axis_labels[-1]
+    title = "7-Tages Inzidenzwerte, Stand: " + dates[-1].strftime("%d.%m.%Y")
     show_graph(graph_data, kreis, x_axis_labels, title, compare_line=germany_inzidenzen)
 
 def show_graph(groups: List[List[int]], group_labels: Optional[Collection[str]] = None, x_axis_labels: Optional[Collection[str]] = None, title: Optional[str] = None, suptitle: Optional[str] = None, compare_line: Optional[Collection[int]] = None):
