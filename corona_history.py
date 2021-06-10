@@ -71,6 +71,10 @@ def convert_to_graph_data(dates, inzidenzen) -> Tuple[List[str], List[str], List
 
     return axis_labels, kreis, table
 
+def set_graph_title(dates):
+    return "7-Tages Inzidenzwerte, Stand: " + dates[-1].strftime("%d.%m.%Y")
+
+
 async def get_from_excel(landkreise: Collection[Landkreise]):
     async with corona.Connector() as con:
         binary_excel = await con.get_excel()
@@ -79,7 +83,7 @@ async def get_from_excel(landkreise: Collection[Landkreise]):
     corona.print_table(header, table)
     x_axis_labels, kreis, graph_data = convert_to_graph_data(dates, inzidenzen_result)
     germany_inzidenzen = [value for (_, value) in sorted(germany_result.items())]
-    title = "7-Tages Inzidenzwerte, Stand: " + dates[-1].strftime("%d.%m.%Y")
+    title = set_graph_title(dates)
     show_graph(graph_data, kreis, x_axis_labels, title, compare_line=germany_inzidenzen)
 
 def show_graph(groups: List[List[float]], group_labels: Optional[Collection[str]] = None, x_axis_labels: Optional[Collection[str]] = None, title: Optional[str] = None, suptitle: Optional[str] = None, compare_line: Optional[Collection[float]] = None):
