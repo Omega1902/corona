@@ -5,6 +5,7 @@ from typing import Iterable, List
 import argparse
 import asyncio
 import aiohttp # pip install aiohttp OPTIONAL: pip install aiodns
+from landkreise import Landkreise
 
 CasesResult = namedtuple('CasesResult', ('city_name', 'cases7_per_100k', 'updated', 'region_id'))
 
@@ -184,17 +185,20 @@ if __name__ == "__main__":
         format='%(asctime)s %(name)-22s %(levelname)-8s %(message)s',
     )
 
-    REGION_IDS_DEFAULT = (
-        413, # Berlin Mitte
-        27,  # Hannover
-        51,  # Aurich
-        7,   # Nordfriesland
-        3,   # Lübeck
-        16,  # Hamburg
-        19,  # Wolfsburg
-        87,  # Oberbergischer Kreis
-        80,  # Köln
+    REGIONS_DEFAULT = (
+        Landkreise.BERLIN_MITTE,
+        Landkreise.HANNOVER,
+        Landkreise.AURICH,
+        Landkreise.NORDFRIESLAND,
+        Landkreise.LUEBECK,
+        Landkreise.HAMBURG,
+        Landkreise.WOLFSBURG,
+        Landkreise.OBERBERGISCHER_KREIS,
+        Landkreise.KOELN,
+        Landkreise.OSTHOLSTEIN,
     )
+
+    REGION_IDS_DEFAULT = tuple(lk.id for lk in REGIONS_DEFAULT)
     PARSER = argparse.ArgumentParser(description='Corona Inzidenzzahlen')
     PARSER.add_argument("-ids", '--region_ids', type=int, nargs='*', default=REGION_IDS_DEFAULT,
                         help='Region Ids für Regionen die geprüft werden sollen. Default verwendet im Skript hintelegte Ids.')

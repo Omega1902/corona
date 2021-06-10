@@ -1,11 +1,12 @@
-from typing import Collection, Iterable, Tuple, List, Optional
+from landkreise import Landkreise
+from typing import Collection, Tuple, List, Optional
 import asyncio
 import pandas as pd # uses openpyxl in background
 import matplotlib.pyplot as plt
 import numpy as np
 import corona
 
-def read_excel(path, kreise: Iterable[str], days: int = 7):
+def read_excel(path, kreise: Collection[str], days: int = 7):
     # read kreise
     data_frame = pd.read_excel(path, sheet_name='LK_7-Tage-Inzidenz (fixiert)', engine="openpyxl")
 
@@ -49,7 +50,7 @@ def convert_to_printable_list(dates, inzidenzen) -> Tuple[List[str], List[List[s
     table = []
 
     for row in inzidenzen:
-        temp = [row['name']]
+        temp = [str(Landkreise.find_by_lk_bez(row['name']))]
         for date_obj in dates:
             temp.append(f"{row[date_obj]:.1f}")
         table.append(temp)
@@ -61,7 +62,7 @@ def convert_to_graph_data(dates, inzidenzen) -> Tuple[List[str], List[str], List
     table = []
 
     for row in inzidenzen:
-        kreis.append(row['name'])
+        kreis.append(str(Landkreise.find_by_lk_bez(row['name'])))
         temp = []
         for date_obj in dates:
             temp.append(row[date_obj])
@@ -73,17 +74,10 @@ def convert_germany_to_graph_data(germany_result):
     germany_result
 
 
-async def get_from_excel():
-    kreise = (
-        "SK Wolfsburg",
-        "LK Oberbergischer Kreis",
-        "SK Köln",
-        "LK Nordfriesland",
-    )
-
+async def get_from_excel(landkreise: Collection[Landkreise]):
     async with corona.Connector() as con:
         binary_excel = await con.get_excel()
-    dates, inzidenzen_result, germany_result = read_excel(binary_excel, kreise)
+    dates, inzidenzen_result, germany_result = read_excel(binary_excel, tuple(lk.lk_name for lk in landkreise))
     header, table = convert_to_printable_list(dates, inzidenzen_result)
     corona.print_table(header, table)
     x_axis_labels, kreis, graph_data = convert_to_graph_data(dates, inzidenzen_result)
@@ -133,4 +127,10 @@ def show_graph(groups: List[List[int]], group_labels: Optional[Collection[str]] 
 
 
 if __name__ == "__main__":
-    asyncio.run(get_from_excel())
+    LANDKREISE = (
+        Landkreise.WOLFSBURG,
+        Landkreise.OBERBERGISCHER_KREIS,
+        Landkreise.KOELN,
+        Landkreise.NORDFRIESLAND,
+    )
+    asyncio.run(get_from_excel(LANDKREISE))
