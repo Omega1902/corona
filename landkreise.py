@@ -13,9 +13,8 @@ class Landkreise(Enum):
     OSTHOLSTEIN          = (  8, "LK Ostholstein")
     WOLFSBURG            = ( 19, "SK Wolfsburg")
 
-
-    def __init__(self, id: int, lk_name: str, name: Optional[str] = None):
-        """Inits a Landkreis. 
+    def __init__(self, lk_id: int, lk_name: str, name: Optional[str] = None):
+        """Inits a Landkreis.
 
         Args:
             id (int): ID used by the rki dashboard. Needs to be unique.
@@ -30,12 +29,12 @@ class Landkreise(Enum):
                 self._name = lk_name
         else:
             self._name = name
-        self._value_ = id
+        self._value_ = lk_id
 
     @property
     def name(self):
         return self._name
-    
+
     @property
     def lk_name(self):
         return self._lk_name
@@ -45,20 +44,14 @@ class Landkreise(Enum):
         return self._value_
 
     @staticmethod
-    def find_by_id(id) -> Optional["Landkreise"]:
-        result = [lk for lk in Landkreise if lk.id == id]
-        if len(result) == 1:
-            return result[0]
-        else:
-            return None
+    def find_by_id(lk_id) -> Optional["Landkreise"]:
+        result = [lk for lk in Landkreise if lk.id == lk_id]
+        return None if len(result) != 1 else result[0]
 
     @staticmethod
-    def find_by_lk_bez(lk_name) -> Optional["Landkreise"]:
+    def find_by_lk_name(lk_name) -> Optional["Landkreise"]:
         result = [lk for lk in Landkreise if lk.lk_name == lk_name]
-        if len(result) == 1:
-            return result[0]
-        else:
-            return None
-    
+        return None if len(result) != 1 else result[0]
+
     def __str__(self):
         return self.name
