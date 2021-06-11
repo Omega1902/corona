@@ -1,5 +1,16 @@
 import unittest
+from typing import Iterable
+import asyncio
+from corona import Connector
 from landkreise import Landkreise
+
+async def test_be(landkreise: Iterable[Landkreise]):
+    """ tests consistency to BE, should run without an exception """
+    async with Connector() as con:
+        tasks = []
+        for landkreis in landkreise:
+            tasks.append(con.get_case(landkreis))
+        await asyncio.gather(*tasks)
 
 class TestLandkreise(unittest.TestCase):
 
@@ -80,6 +91,10 @@ class TestLandkreise(unittest.TestCase):
         }
         for name, landkreis in tests.items():
             self.assertEqual(name, landkreis.name)
+
+    def test_consistency_be(self):
+        """ This testcase should check whether the Landkreis values are matching the ones of the BE """
+        asyncio.run(test_be(self.landkreise_dict))
 
 if __name__ == '__main__':
     unittest.main()
