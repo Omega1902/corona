@@ -3,6 +3,10 @@ from landkreise import Landkreise
 
 class TestLandkreise(unittest.TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        cls.landkreise_dict = [lk for lk in Landkreise]
+
     def test_uniqueness(self):
         for landkreis in Landkreise:
             same_id = [lk for lk in Landkreise if lk.id == landkreis.id]
@@ -20,11 +24,51 @@ class TestLandkreise(unittest.TestCase):
 
         self.assertIsNone(Landkreise.find_by_id(-1))
 
+    def test_find_by_ids(self):
+        tests = [
+            {
+                "test":     [lk.id for lk in Landkreise] + [-1],
+                "expect":   self.landkreise_dict
+            },
+            {
+                "test":     (lk.id for lk in Landkreise),
+                "expect":   self.landkreise_dict
+            },
+            {
+                "test":     tuple(my_int for my_int in (-1, -2)),
+                "expect":   []
+            },
+        ]
+        for test in tests:
+            with self.subTest(test=test):
+                landkreise = Landkreise.find_by_ids(test["test"])
+                self.assertEqual(landkreise, test["expect"])
+
     def test_find_by_lk_name(self):
         for landkreis in Landkreise:
             self.assertEqual(Landkreise.find_by_lk_name(landkreis.lk_name), landkreis)
 
         self.assertIsNone(Landkreise.find_by_lk_name("DOES NOT EXIST"))
+
+    def test_find_by_lk_names(self):
+        tests = [
+            {
+                "test":     [lk.lk_name for lk in Landkreise] + ["DOES NOT EXIST"],
+                "expect":   self.landkreise_dict
+            },
+            {
+                "test":     (lk.lk_name for lk in Landkreise),
+                "expect":   self.landkreise_dict
+            },
+            {
+                "test":     tuple(string for string in ("DOES NOT EXIST", "DOES NOT EXIST2")),
+                "expect":   []
+            },
+        ]
+        for test in tests:
+            with self.subTest(test=test):
+                landkreise = Landkreise.find_by_lk_names(test["test"])
+                self.assertEqual(landkreise, test["expect"])
 
     def test_name(self):
         tests = {

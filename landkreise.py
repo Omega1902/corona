@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional
+from typing import Iterable, Optional, List
 
 class Landkreise(Enum):
     AURICH               = ( 51, "LK Aurich")
@@ -48,10 +48,48 @@ class Landkreise(Enum):
         result = [lk for lk in Landkreise if lk.id == lk_id]
         return None if len(result) != 1 else result[0]
 
+    @classmethod
+    def find_by_ids(cls, lk_ids: Iterable[int]) -> List["Landkreise"]:
+        """Will return a list of all Landkreise of the given ids.
+        If an id does not exist, the None paramter returned by find_by_id will not be contained in this list.
+        If lk_ids is None or does not contain a valid lk_id, the result will be an empty list.
+
+        Args:
+            lk_ids (Iterable[int]): lk_ids to convert to Landkreise
+
+        Returns:
+            list[Landkreise]: List of Landkreise
+        """
+        result = []
+        for lk_id in lk_ids:
+            landkreis = cls.find_by_id(lk_id)
+            if landkreis is not None:
+                result.append(landkreis)
+        return result
+
     @staticmethod
     def find_by_lk_name(lk_name) -> Optional["Landkreise"]:
         result = [lk for lk in Landkreise if lk.lk_name == lk_name]
         return None if len(result) != 1 else result[0]
+
+    @classmethod
+    def find_by_lk_names(cls, lk_names: Iterable[str]) -> List["Landkreise"]:
+        """Will return a list of all Landkreise of the given lk_names.
+        If an lk_name does not exist, the None paramter returned by find_by_lk_name will not be contained in this list.
+        If lk_names is None or does not contain a valid lk_name, the result will be an empty list.
+
+        Args:
+            lk_names (Iterable[str]): lk_names to convert to Landkreise
+
+        Returns:
+            list[Landkreise]: List of Landkreise
+        """
+        result = []
+        for lk_name in lk_names:
+            landkreis = cls.find_by_lk_name(lk_name)
+            if landkreis is not None:
+                result.append(landkreis)
+        return result
 
     def __str__(self):
         return self.name
