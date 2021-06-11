@@ -1,13 +1,13 @@
 import os
 import logging
 from collections import namedtuple
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 import argparse
 import asyncio
 import aiohttp # pip install aiohttp OPTIONAL: pip install aiodns
 from landkreise import Landkreise
 
-CasesResult = namedtuple('CasesResult', ('city_name', 'cases7_per_100k', 'updated', 'region_id'))
+CasesResult = namedtuple('CasesResult', ('city_name', 'county', 'cases7_per_100k', 'updated', 'region_id'))
 
 class Connector:
 
@@ -17,6 +17,7 @@ class Connector:
             'GEN',
             # 'BEZ',
             # 'BL',
+            'county',
             # 'cases',
             # 'deaths',
             # 'cases_per_population',
@@ -63,27 +64,31 @@ class Connector:
         for city in response_json["features"]:
             region_id = city["attributes"]["OBJECTID"]
             bereich = city["attributes"]["GEN"]
+            county = city["attributes"]["county"]
             cases7_per_100k = city["attributes"]["cases7_per_100k"]
             last_update = city["attributes"]["last_update"]
-            result.append(CasesResult(bereich, cases7_per_100k, last_update, region_id))
+            result.append(CasesResult(bereich, county, cases7_per_100k, last_update, region_id))
         return result
 
     def get(self, url):
         return self._session.get(url, proxy=self.proxy)
 
-    async def get_case(self, region_id):
-        url = self.url.format(region_id)
+    async def get_case(self, landkreis: Landkreise):
+        url = self.url.format(landkreis.id)
         logging.info("Url: '%s'", url)
         async with self.get(url) as response:
             response.raise_for_status()
             response_json = await response.json(content_type='text/plain')
-        logging.debug("%i loaded", region_id)
-        return self.parse_answer(response_json)
+        logging.debug("%i loaded", landkreis.id)
+        response = self.parse_answer(response_json)
+        assert response.county == landkreis.lk_name, "Wrong lk_name was returned"
+        assert response.region_id == landkreis.id, "Wrong id was returned"
+        return response
 
-    async def get_cases(self, region_ids):
+    async def get_cases(self, landkreise: Iterable[Landkreise]):
         tasks = []
-        for region_id in region_ids:
-            tasks.append(self.get_case(region_id))
+        for landkreis in landkreise:
+            tasks.append(self.get_case(landkreis))
         return await asyncio.gather(*tasks)
 
     async def get_all_cases(self):
@@ -132,7 +137,7 @@ def print_result(result: Iterable[CasesResult], print_id: bool = False):
             assert city.updated.startswith(date_string)
         temp = []
         if print_id:
-            temp.append(city.city_name + f" ({city.region_id})")
+            temp.append(city.county + f" ({city.region_id})")
         else:
             temp.append(city.city_name)
         temp.append(f"{city.cases7_per_100k:3.2f}")
@@ -159,8 +164,8 @@ def print_table(headers: List[str], table: List[List[str]]):
     for row in table:
         print(print_format.format(*row))
 
-async def main(region_ids=None, keep_order=False):
-    if region_ids is None:
+async def main(landkreise: Optional[Iterable[Landkreise]] = None, keep_order: bool = False):
+    if landkreise is None:
         async with Connector() as con:
             result = await con.get_all_cases()
         sort_by_name = lambda city: city.city_name
@@ -168,13 +173,13 @@ async def main(region_ids=None, keep_order=False):
         print_result(result, True)
     elif keep_order:
         async with Connector() as con:
-            result = await con.get_cases(region_ids)
+            result = await con.get_cases(landkreise)
         print_result(result)
     else:
         async with Connector() as con:
             tasks = []
-            for region_id in region_ids:
-                tasks.append(con.get_case(region_id))
+            for landkreis in landkreise:
+                tasks.append(con.get_case(landkreis))
             await print_result_async(tasks)
 
 
@@ -185,7 +190,7 @@ if __name__ == "__main__":
         format='%(asctime)s %(name)-22s %(levelname)-8s %(message)s',
     )
 
-    REGIONS_DEFAULT = (
+    REGIONS = (
         Landkreise.BERLIN_MITTE,
         Landkreise.HANNOVER,
         Landkreise.AURICH,
@@ -198,10 +203,10 @@ if __name__ == "__main__":
         Landkreise.OSTHOLSTEIN,
     )
 
-    REGION_IDS_DEFAULT = tuple(lk.id for lk in REGIONS_DEFAULT)
     PARSER = argparse.ArgumentParser(description='Corona Inzidenzzahlen')
-    PARSER.add_argument("-ids", '--region_ids', type=int, nargs='*', default=REGION_IDS_DEFAULT,
-                        help='Region Ids für Regionen die geprüft werden sollen. Default verwendet im Skript hintelegte Ids.')
+    PARSER.add_argument("-ids", '--region_ids', type=int, nargs='*',
+                        help='Region Ids für Regionen die geprüft werden sollen. Default verwendet im Skript hintelegte Ids. '\
+                            'Es funktionieren nur bekannte ids.')
     PARSER.add_argument("-a", '--all', action='store_true',
                         help='Gibt alle Inzidenzzahlen inkl Region IDs aus. Ignoriert die anderen Parameter.')
     PARSER.add_argument("-o", '--force_order', action='store_true',
@@ -211,7 +216,9 @@ if __name__ == "__main__":
     ALL = ARGS.all
     FORCE_ORDER = ARGS.force_order
     REGION_IDS = ARGS.region_ids
+    if REGION_IDS is not None:
+        REGIONS = Landkreise.find_by_ids(REGION_IDS)
     if ALL:
-        REGION_IDS = None
+        REGIONS = None
 
-    asyncio.run(main(REGION_IDS, FORCE_ORDER))
+    asyncio.run(main(REGIONS, FORCE_ORDER))
