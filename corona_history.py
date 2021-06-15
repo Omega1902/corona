@@ -74,17 +74,25 @@ def convert_to_graph_data(dates, inzidenzen) -> Tuple[List[str], List[str], List
 def set_graph_title(dates):
     return "7-Tages Inzidenzwerte, Stand: " + dates[-1].strftime("%d.%m.%Y")
 
-
-async def get_from_excel(landkreise: Collection[Landkreise]):
-    async with corona.Connector() as con:
-        binary_excel = await con.get_excel()
-    dates, inzidenzen_result, germany_result = read_excel(binary_excel, tuple(lk.lk_name for lk in landkreise))
+def print_result(dates, inzidenzen_result):
     header, table = convert_to_printable_list(dates, inzidenzen_result)
     corona.print_table(header, table)
+
+def plot_result(dates, inzidenzen_result, germany_result):
     x_axis_labels, kreis, graph_data = convert_to_graph_data(dates, inzidenzen_result)
     germany_inzidenzen = [value for (_, value) in sorted(germany_result.items())]
     title = set_graph_title(dates)
     show_graph(graph_data, kreis, x_axis_labels, title, compare_line=germany_inzidenzen)
+
+async def get_history(landkreise: Collection[Landkreise]):
+    # get data online
+    async with corona.Connector() as con:
+        binary_excel = await con.get_excel()
+    # read data
+    dates, inzidenzen_result, germany_result = read_excel(binary_excel, tuple(lk.lk_name for lk in landkreise))
+    # show data
+    print_result(dates, inzidenzen_result)
+    plot_result(dates, inzidenzen_result, germany_result)
 
 def show_graph(groups: List[List[float]], group_labels: Optional[Sequence[str]] = None, x_axis_labels: Optional[Sequence[str]] = None, title: Optional[str] = None, suptitle: Optional[str] = None, compare_line: Optional[Sequence[float]] = None):
     size = len(groups)
@@ -136,4 +144,4 @@ if __name__ == "__main__":
         Landkreise.KOELN,
         Landkreise.NORDFRIESLAND,
     )
-    asyncio.run(get_from_excel(LANDKREISE))
+    asyncio.run(get_history(LANDKREISE))
