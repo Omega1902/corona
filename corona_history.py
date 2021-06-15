@@ -1,4 +1,4 @@
-from typing import Collection, Tuple, List, Optional
+from typing import Collection, Tuple, List, Optional, Sequence
 import asyncio
 import pandas as pd # uses openpyxl in background
 import matplotlib.pyplot as plt
@@ -7,7 +7,7 @@ import numpy as np
 import corona
 from landkreise import Landkreise
 
-def read_excel(path, kreise: Collection[str], days: int = 7):
+def read_excel(path, kreise: Collection[str], days: int = 8):
     # read kreise
     data_frame = pd.read_excel(path, sheet_name='LK_7-Tage-Inzidenz (fixiert)', engine="openpyxl")
 
@@ -86,7 +86,7 @@ async def get_from_excel(landkreise: Collection[Landkreise]):
     title = set_graph_title(dates)
     show_graph(graph_data, kreis, x_axis_labels, title, compare_line=germany_inzidenzen)
 
-def show_graph(groups: List[List[float]], group_labels: Optional[Collection[str]] = None, x_axis_labels: Optional[Collection[str]] = None, title: Optional[str] = None, suptitle: Optional[str] = None, compare_line: Optional[Collection[float]] = None):
+def show_graph(groups: List[List[float]], group_labels: Optional[Sequence[str]] = None, x_axis_labels: Optional[Sequence[str]] = None, title: Optional[str] = None, suptitle: Optional[str] = None, compare_line: Optional[Sequence[float]] = None):
     size = len(groups)
     assert size > 0, "groups should not be empty"
     if group_labels is not None:
@@ -100,13 +100,13 @@ def show_graph(groups: List[List[float]], group_labels: Optional[Collection[str]
     pos = np.array(range(len(groups[0])))
 
     for i in range(size):
-        plt.bar(pos + i * width + adjust_width, groups[i], width=width)
+        if group_labels:
+            plt.bar(pos + i * width + adjust_width, groups[i], width=width, label=group_labels[i])
+        else:
+            plt.bar(pos + i * width + adjust_width, groups[i], width=width)
 
     if x_axis_labels is not None:
         plt.xticks(pos, x_axis_labels)
-
-    if group_labels is not None:
-        plt.gca().add_artist(plt.legend(group_labels, loc='upper right'))
 
     if title is not None:
         plt.title(title)
@@ -116,13 +116,13 @@ def show_graph(groups: List[List[float]], group_labels: Optional[Collection[str]
 
     if compare_line is not None:
         assert len(groups[0]) == len(compare_line), "the ammount of compare lines should match the amount of groups data"
-        for i, cur_line in enumerate(compare_line):
-            plt.hlines(y=cur_line, xmin=pos[i] - 0.49, xmax=pos[i] + 0.49, colors="black")
-        red_patch = mpatches.Patch(color='black', label='Deutschland')
-        plt.legend(handles=[red_patch], loc='upper left')
+        plt.hlines(y=compare_line, xmin=pos - 0.49, xmax=pos + 0.49, colors="black", label="Deutschland")
+    
+    plt.legend()
 
-    plt.axhline(y=35)
-    plt.axhline(y=50)
+    lines = (10, 35)
+    for line in lines:
+        plt.axhline(y=line, color="grey", linestyle="dotted")
 
     # plt.grid(True, which="major" , axis="y")
 
