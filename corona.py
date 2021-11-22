@@ -80,7 +80,7 @@ class Connector:
         logging.info("Url: '%s'", url)
         async with self.get(url) as response:
             response.raise_for_status()
-            response_json = await response.json(content_type='text/plain')
+            response_json = await response.json()
         logging.debug("%i loaded", landkreis.id)
         response = self.parse_answer(response_json)
         assert response.county == landkreis.lk_name, "Wrong lk_name was returned"
@@ -88,15 +88,13 @@ class Connector:
         return response
 
     async def get_cases(self, landkreise: Iterable[Landkreise]):
-        tasks = []
-        for landkreis in landkreise:
-            tasks.append(self.get_case(landkreis))
+        tasks = [self.get_case(landkreis) for landkreis in landkreise]
         return await asyncio.gather(*tasks)
 
     async def get_all_cases(self):
         async with self.get(self.url_all) as response:
             response.raise_for_status()
-            response_json = await response.json(content_type='text/plain')
+            response_json = await response.json()
         return self.parse_answer_all(response_json)
 
     async def get_excel(self):
@@ -108,7 +106,7 @@ class Connector:
     async def get_germany(self):
         async with self.get(self.url_germany) as response:
             response.raise_for_status()
-            result = await response.json(content_type='text/plain')
+            result = await response.json()
         return result["features"][0]["attributes"]["Inz7T"]
 
     async def __aenter__(self) -> "Connector":
@@ -185,9 +183,7 @@ async def main(landkreise: Optional[Iterable[Landkreise]] = None, keep_order: bo
         print_result(result)
     else:
         async with Connector() as con:
-            tasks = []
-            for landkreis in landkreise:
-                tasks.append(con.get_case(landkreis))
+            tasks = [con.get_case(landkreis) for landkreis in landkreise]
             await print_result_async(tasks)
 
 

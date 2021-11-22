@@ -7,9 +7,7 @@ from landkreise import Landkreise
 async def test_be(landkreise: Iterable[Landkreise]):
     """ tests consistency to BE, should run without an exception """
     async with Connector() as con:
-        tasks = []
-        for landkreis in landkreise:
-            tasks.append(con.get_case(landkreis))
+        tasks = [con.get_case(landkreis) for landkreis in landkreise]
         await asyncio.gather(*tasks)
 
 class TestLandkreise(unittest.TestCase):
@@ -36,20 +34,13 @@ class TestLandkreise(unittest.TestCase):
         self.assertIsNone(Landkreise.find_by_id(-1))
 
     def test_find_by_ids(self):
-        tests = [
-            {
+        tests = [{
                 "test":     [lk.id for lk in Landkreise] + [-1],
                 "expect":   self.landkreise_dict
-            },
-            {
+            }, {
                 "test":     (lk.id for lk in Landkreise),
                 "expect":   self.landkreise_dict
-            },
-            {
-                "test":     tuple(my_int for my_int in (-1, -2)),
-                "expect":   []
-            },
-        ]
+            }, {"test": tuple((-1, -2)), "expect": []}]
         for test in tests:
             with self.subTest(test=test):
                 landkreise = Landkreise.find_by_ids(test["test"])
@@ -62,20 +53,13 @@ class TestLandkreise(unittest.TestCase):
         self.assertIsNone(Landkreise.find_by_lk_name("DOES NOT EXIST"))
 
     def test_find_by_lk_names(self):
-        tests = [
-            {
+        tests = [{
                 "test":     [lk.lk_name for lk in Landkreise] + ["DOES NOT EXIST"],
                 "expect":   self.landkreise_dict
-            },
-            {
+            }, {
                 "test":     (lk.lk_name for lk in Landkreise),
                 "expect":   self.landkreise_dict
-            },
-            {
-                "test":     tuple(string for string in ("DOES NOT EXIST", "DOES NOT EXIST2")),
-                "expect":   []
-            },
-        ]
+            }, {"test": tuple(("DOES NOT EXIST", "DOES NOT EXIST2")), "expect": []}]
         for test in tests:
             with self.subTest(test=test):
                 landkreise = Landkreise.find_by_lk_names(test["test"])

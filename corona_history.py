@@ -64,10 +64,7 @@ def convert_to_graph_data(dates, inzidenzen) -> Tuple[List[str], List[str], List
 
     for row in inzidenzen:
         kreis.append(str(Landkreise.find_by_lk_name(row['name'])))
-        temp = []
-        for date_obj in dates:
-            temp.append(row[date_obj])
-        table.append(temp)
+        table.append([row[date_obj] for date_obj in dates])
 
     return axis_labels, kreis, table
 
@@ -93,6 +90,16 @@ async def get_history(landkreise: Collection[Landkreise]):
     # show data
     print_result(dates, inzidenzen_result)
     plot_result(dates, inzidenzen_result, germany_result)
+
+
+def get_lines(groups: List[List[float]], compare_line: Optional[Collection[float]] = None):
+    max_comp = 0 if compare_line is None else max(compare_line)
+    max_val = max(max(group) for group in groups)
+    max_val = max(max_val, max_comp)
+    result = [x for x in (10, 35, 50) if x  + 5 < max_val]
+    result.extend(range(100, int(max_val) + 16, 50))
+    return result #(10, 35, 50, 100, 150, 200, 250, 300, 350)
+
 
 def show_graph(groups: List[List[float]], group_labels: Optional[Sequence[str]] = None, x_axis_labels: Optional[Sequence[str]] = None, title: Optional[str] = None, suptitle: Optional[str] = None, compare_line: Optional[Sequence[float]] = None):
     size = len(groups)
@@ -128,8 +135,7 @@ def show_graph(groups: List[List[float]], group_labels: Optional[Sequence[str]] 
     
     plt.legend()
 
-    lines = (10, 35)
-    for line in lines:
+    for line in get_lines(groups, compare_line):
         plt.axhline(y=line, color="grey", linestyle="dotted")
 
     # plt.grid(True, which="major" , axis="y")

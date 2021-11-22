@@ -96,7 +96,7 @@ class Landkreise(Enum):
     EICHSFELD                          =  (385,  "LK Eichsfeld")
     EICHSTAETT                         =  (231,  "LK Eichstätt")
     EIFELKREIS_BITBURG_PRUEM           =  (156,  "LK Bitburg-Prüm")
-    EISENACH                           =  (384,  "SK Eisenach")
+    # EISENACH                           =  (384,  "SK Eisenach") does no longer work
     ELBE_ELSTER                        =  (332,  "LK Elbe-Elster")
     EMDEN                              =  ( 46,  "SK Emden")
     EMMENDINGEN                        =  (206,  "LK Emmendingen")
