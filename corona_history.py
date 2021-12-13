@@ -1,15 +1,26 @@
 from typing import Collection, Tuple, List, Optional, Sequence
+from datetime import datetime
 import asyncio
-import pandas as pd # uses openpyxl in background
+import pandas as pd  # uses openpyxl in background
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
 import corona
 from landkreise import Landkreise
 
+
+def format_to_datetime(excel_date):
+    if isinstance(excel_date, datetime):
+        return excel_date
+    if isinstance(excel_date, str):
+        datetime.strptime(excel_date, "%d.%m.%Y")
+    # hope it's int
+    datetime.fromordinal(datetime(1900, 1, 1).toordinal() + int(excel_date) - 2)
+
+
 def read_excel(path, kreise: Collection[str], days: int = 8):
     # read kreise
-    data_frame = pd.read_excel(path, sheet_name='LK_7-Tage-Inzidenz (fixiert)', engine="openpyxl")
+    data_frame = pd.read_excel(path, sheet_name="LK_7-Tage-Inzidenz (fixiert)", engine="openpyxl")
 
     result = []
     dates = {}
@@ -18,7 +29,7 @@ def read_excel(path, kreise: Collection[str], days: int = 8):
             pointer = len(row) - 1
             while len(dates) < days:
                 if pd.notna(row[pointer]):
-                    dates[row[pointer]] = pointer
+                    dates[format_to_datetime(row[pointer])] = pointer
                 pointer -= 1
 
         elif row[1] in kreise:
@@ -27,17 +38,16 @@ def read_excel(path, kreise: Collection[str], days: int = 8):
                 temp[date_obj] = row[key]
             result.append(temp)
 
-
     # read Deutschland
     data_frame = pd.read_excel(path, sheet_name="BL_7-Tage-Inzidenz (fixiert)", engine="openpyxl")
     germany = {}
     dates_germany = {}
     for row_number, row in enumerate(data_frame.values):
-        if row_number == 1:
+        if row_number == 3:
             pointer = len(row) - 1
             while len(dates_germany) < days:
                 if pd.notna(row[pointer]):
-                    dates_germany[row[pointer]] = pointer
+                    dates_germany[format_to_datetime(row[pointer])] = pointer
                 pointer -= 1
         elif row[0] == "Gesamt":
             for date_obj, key in dates_germany.items():
@@ -46,16 +56,18 @@ def read_excel(path, kreise: Collection[str], days: int = 8):
     assert dates.keys() == dates_germany.keys()
     return sorted(dates.keys()), result, germany
 
+
 def convert_to_printable_list(dates, inzidenzen) -> Tuple[List[str], List[List[str]]]:
     header = ["Kreise"] + [date_obj.strftime("%d.%m.") for date_obj in dates]
     table = []
 
     for row in inzidenzen:
-        temp = [str(Landkreise.find_by_lk_name(row['name']))]
+        temp = [str(Landkreise.find_by_lk_name(row["name"]))]
         for date_obj in dates:
             temp.append(f"{row[date_obj]:.1f}")
         table.append(temp)
     return header, table
+
 
 def convert_to_graph_data(dates, inzidenzen) -> Tuple[List[str], List[str], List[List[float]]]:
     axis_labels = [date_obj.strftime("%d.%m.") for date_obj in dates]
@@ -63,23 +75,27 @@ def convert_to_graph_data(dates, inzidenzen) -> Tuple[List[str], List[str], List
     table = []
 
     for row in inzidenzen:
-        kreis.append(str(Landkreise.find_by_lk_name(row['name'])))
+        kreis.append(str(Landkreise.find_by_lk_name(row["name"])))
         table.append([row[date_obj] for date_obj in dates])
 
     return axis_labels, kreis, table
 
+
 def set_graph_title(dates):
     return "7-Tages Inzidenzwerte, Stand: " + dates[-1].strftime("%d.%m.%Y")
+
 
 def print_result(dates, inzidenzen_result):
     header, table = convert_to_printable_list(dates, inzidenzen_result)
     corona.print_table(header, table)
+
 
 def plot_result(dates, inzidenzen_result, germany_result):
     x_axis_labels, kreis, graph_data = convert_to_graph_data(dates, inzidenzen_result)
     germany_inzidenzen = [value for (_, value) in sorted(germany_result.items())]
     title = set_graph_title(dates)
     show_graph(graph_data, kreis, x_axis_labels, title, compare_line=germany_inzidenzen)
+
 
 async def get_history(landkreise: Collection[Landkreise]):
     # get data online
@@ -96,12 +112,19 @@ def get_lines(groups: List[List[float]], compare_line: Optional[Collection[float
     max_comp = 0 if compare_line is None else max(compare_line)
     max_val = max(max(group) for group in groups)
     max_val = max(max_val, max_comp)
-    result = [x for x in (10, 35, 50) if x  + 5 < max_val]
+    result = [x for x in (10, 35, 50) if x + 5 < max_val]
     result.extend(range(100, int(max_val) + 16, 50))
-    return result #(10, 35, 50, 100, 150, 200, 250, 300, 350)
+    return result  # (10, 35, 50, 100, 150, 200, 250, 300, 350)
 
 
-def show_graph(groups: List[List[float]], group_labels: Optional[Sequence[str]] = None, x_axis_labels: Optional[Sequence[str]] = None, title: Optional[str] = None, suptitle: Optional[str] = None, compare_line: Optional[Sequence[float]] = None):
+def show_graph(
+    groups: List[List[float]],
+    group_labels: Optional[Sequence[str]] = None,
+    x_axis_labels: Optional[Sequence[str]] = None,
+    title: Optional[str] = None,
+    suptitle: Optional[str] = None,
+    compare_line: Optional[Sequence[float]] = None,
+):
     size = len(groups)
     assert size > 0, "groups should not be empty"
     if group_labels is not None:
@@ -110,7 +133,7 @@ def show_graph(groups: List[List[float]], group_labels: Optional[Sequence[str]] 
         assert len(x_axis_labels) == len(groups[0]), "the ammount of groups data and group_labels should match"
 
     width = 0.8 / size
-    adjust_width = -1 * width * (size -1) / 2
+    adjust_width = -1 * width * (size - 1) / 2
 
     pos = np.array(range(len(groups[0])))
 
@@ -132,7 +155,7 @@ def show_graph(groups: List[List[float]], group_labels: Optional[Sequence[str]] 
     if compare_line is not None:
         assert len(groups[0]) == len(compare_line), "the ammount of compare lines should match the amount of groups data"
         plt.hlines(y=compare_line, xmin=pos - 0.49, xmax=pos + 0.49, colors="black", label="Deutschland")
-    
+
     plt.legend()
 
     for line in get_lines(groups, compare_line):
