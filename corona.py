@@ -4,52 +4,53 @@ from collections import namedtuple
 from typing import Iterable, List, Optional
 import argparse
 import asyncio
-import aiohttp # pip install aiohttp OPTIONAL: pip install aiodns
+import aiohttp  # pip install aiohttp OPTIONAL: pip install aiodns
 from landkreise import Landkreise
 
-CasesResult = namedtuple('CasesResult', ('city_name', 'county', 'cases7_per_100k', 'updated', 'region_id'))
+CasesResult = namedtuple("CasesResult", ("city_name", "county", "cases7_per_100k", "updated", "region_id"))
+
 
 class Connector:
-
     def __init__(self):
         fields = (
-            'OBJECTID',
-            'GEN',
+            "OBJECTID",
+            "GEN",
             # 'BEZ',
             # 'BL',
-            'county',
+            "county",
             # 'cases',
             # 'deaths',
             # 'cases_per_population',
-
-            'cases7_per_100k',
+            "cases7_per_100k",
             # 'cases7_lk',
             # 'death7_lk',
             # 'cases7_bl_per_100k',
             # 'cases7_bl',
             # 'death7_bl',
-
-            'last_update'
+            "last_update",
         )
         fieldstr = ",".join(fields)
 
-        self.url = "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/"\
-            "RKI_Landkreisdaten/FeatureServer/0/query?where=OBJECTID={}&outFields="\
-             + fieldstr + "&returnGeometry=false&outSR=&f=json"
+        self.url = (
+            "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/"
+            "RKI_Landkreisdaten/FeatureServer/0/query?where=OBJECTID={}&outFields=" + fieldstr + "&returnGeometry=false&outSR=&f=json"
+        )
 
-        self.url_all = "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/"\
-            "RKI_Landkreisdaten/FeatureServer/0/query?where=1=1&outFields="\
-             + fieldstr + "&returnGeometry=false&outSR=&f=json"
-        self.url_excel = "https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/"\
-            "Fallzahlen_Kum_Tab.xlsx?__blob=publicationFile"
-        self.url_germany = "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/"\
+        self.url_all = (
+            "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/"
+            "RKI_Landkreisdaten/FeatureServer/0/query?where=1=1&outFields=" + fieldstr + "&returnGeometry=false&outSR=&f=json"
+        )
+        self.url_excel = "https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/" "Fallzahlen_Kum_Tab.xlsx?__blob=publicationFile"
+        self.url_germany = (
+            "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/"
             "rki_key_data_v/FeatureServer/0/query?f=json&where=ObjectId=1&returnGeometry=false&outFields=Inz7T"
+        )
         self._session = None
         self.set_proxy()
 
     def set_proxy(self):
         try:
-            self.proxy = os.environ['HTTP_PROXY']
+            self.proxy = os.environ["HTTP_PROXY"]
         except KeyError:
             self.proxy = None
             logging.info("Not using Proxy.")
@@ -155,20 +156,22 @@ def print_result(result: Iterable[CasesResult], print_id: bool = False):
         header = ["Landkreis", "Inzidenz"]
         print_table(header, to_print)
 
+
 def print_table(headers: List[str], table: List[List[str]]):
     print_formats = []
     for i, header in enumerate(headers):
         size = max(len(x[i]) for x in table)
         size = max(size, len(header))
-        if i == 0: # First item left binding
-            print_formats.append('{:' + str(size) + '}')
-        else: # all other right binding
-            print_formats.append('{:>' + str(size) + '}')
+        if i == 0:  # First item left binding
+            print_formats.append("{:" + str(size) + "}")
+        else:  # all other right binding
+            print_formats.append("{:>" + str(size) + "}")
     print_format = " ".join(print_formats)
     logging.debug("Format: '%s'", print_format)
     print(print_format.format(*headers))
     for row in table:
         print(print_format.format(*row))
+
 
 async def main(landkreise: Optional[Iterable[Landkreise]] = None, keep_order: bool = False):
     if landkreise is None:
@@ -187,11 +190,10 @@ async def main(landkreise: Optional[Iterable[Landkreise]] = None, keep_order: bo
             await print_result_async(tasks)
 
 
-
 if __name__ == "__main__":
     logging.basicConfig(
         # level=logging.DEBUG,
-        format='%(asctime)s %(name)-22s %(levelname)-8s %(message)s',
+        format="%(asctime)s %(name)-22s %(levelname)-8s %(message)s",
     )
 
     REGIONS = (
@@ -207,14 +209,16 @@ if __name__ == "__main__":
         Landkreise.OSTHOLSTEIN,
     )
 
-    PARSER = argparse.ArgumentParser(description='Corona Inzidenzzahlen')
-    PARSER.add_argument("-ids", '--region_ids', type=int, nargs='*',
-                        help='Region Ids für Regionen die geprüft werden sollen. Default verwendet im Skript hintelegte Ids. '\
-                            'Es funktionieren nur bekannte ids.')
-    PARSER.add_argument("-a", '--all', action='store_true',
-                        help='Gibt alle Inzidenzzahlen inkl Region IDs aus. Ignoriert die anderen Parameter.')
-    PARSER.add_argument("-o", '--force_order', action='store_true',
-                        help='Ausgabe ist in der selben Reihenfolge wie die IDs.')
+    PARSER = argparse.ArgumentParser(description="Corona Inzidenzzahlen")
+    PARSER.add_argument(
+        "-ids",
+        "--region_ids",
+        type=int,
+        nargs="*",
+        help="Region Ids für Regionen die geprüft werden sollen. Default verwendet im Skript hintelegte Ids. " "Es funktionieren nur bekannte ids.",
+    )
+    PARSER.add_argument("-a", "--all", action="store_true", help="Gibt alle Inzidenzzahlen inkl Region IDs aus. Ignoriert die anderen Parameter.")
+    PARSER.add_argument("-o", "--force_order", action="store_true", help="Ausgabe ist in der selben Reihenfolge wie die IDs.")
 
     ARGS = PARSER.parse_args()
     ALL = ARGS.all

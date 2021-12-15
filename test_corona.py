@@ -2,6 +2,7 @@ import unittest
 import asyncio
 from corona import Connector
 
+
 async def check_germany():
     async with Connector() as con:
         result = await con.get_germany()
@@ -10,9 +11,9 @@ async def check_germany():
 
 
 class TestCorona(unittest.TestCase):
-
     def test_corona_germany(self):
         asyncio.run(check_germany())
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

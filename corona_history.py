@@ -3,7 +3,6 @@ from datetime import datetime
 import asyncio
 import pandas as pd  # uses openpyxl in background
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import numpy as np
 import corona
 from landkreise import Landkreise
@@ -13,9 +12,9 @@ def format_to_datetime(excel_date):
     if isinstance(excel_date, datetime):
         return excel_date
     if isinstance(excel_date, str):
-        datetime.strptime(excel_date, "%d.%m.%Y")
+        return datetime.strptime(excel_date, "%d.%m.%Y")
     # hope it's int
-    datetime.fromordinal(datetime(1900, 1, 1).toordinal() + int(excel_date) - 2)
+    return datetime.fromordinal(datetime(1900, 1, 1).toordinal() + int(excel_date) - 2)
 
 
 def read_excel(path, kreise: Collection[str], days: int = 8):
