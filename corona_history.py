@@ -109,8 +109,7 @@ async def get_history(landkreise: Collection[Landkreise]):
 
 def get_lines(groups: List[List[float]], compare_line: Optional[Collection[float]] = None):
     max_comp = 0 if not compare_line else max(compare_line)
-    filtered_groups = 0 if not groups else tuple(group for group in groups if group)
-    max_val = 0 if not filtered_groups else max((max(group) for group in filtered_groups))
+    max_val = 0 if not groups else max((0 if not group else max(group) for group in groups))
     max_val = max(max_val, max_comp)
     result = [x for x in (10, 35, 50) if x - 5 < max_val]
     result.extend(range(100, int(max_val) + 16, 50))
