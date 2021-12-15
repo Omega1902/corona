@@ -8,7 +8,6 @@ aiohttp = "*"
 pandas = "*"
 openpyxl = "*"
 matplotlib = "*"
-pyqt5 = "*"
 
 [dev-packages]
 black = "==21.11b1"
