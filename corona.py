@@ -40,7 +40,7 @@ class Connector:
             "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/"
             "RKI_Landkreisdaten/FeatureServer/0/query?where=1=1&outFields=" + fieldstr + "&returnGeometry=false&outSR=&f=json"
         )
-        self.url_excel = "https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/" "Fallzahlen_Kum_Tab.xlsx?__blob=publicationFile"
+        self.url_excel = "https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/Fallzahlen_Kum_Tab.xlsx?__blob=publicationFile"
         self.url_germany = (
             "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/"
             "rki_key_data_v/FeatureServer/0/query?f=json&where=ObjectId=1&returnGeometry=false&outFields=Inz7T"
@@ -126,7 +126,7 @@ async def print_result_async(tasks, column1_width=20):
     for coro in asyncio.as_completed(tasks):
         city = await coro
         if date_string is None:
-            date_string = city.updated[0:10]
+            date_string = city.updated[:10]
             print("Datum: " + date_string)
             print(print_format.format("Kreis", "Inzidenz"))
         else:
@@ -139,7 +139,7 @@ def print_result(result: Iterable[CasesResult], print_id: bool = False):
     date_string = None
     for city in result:
         if date_string is None:
-            date_string = city.updated[0:10]
+            date_string = city.updated[:10]
         else:
             assert city.updated.startswith(date_string)
         temp = []
