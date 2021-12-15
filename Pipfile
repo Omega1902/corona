@@ -12,6 +12,7 @@ pyqt5 = "*"
 
 [dev-packages]
 black = "==21.11b1"
+coverage = "*"
 
 [pipenv]
 allow_prereleases = true
