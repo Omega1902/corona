@@ -40,7 +40,9 @@ class Connector:
             "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/"
             "RKI_Landkreisdaten/FeatureServer/0/query?where=1=1&outFields=" + fieldstr + "&returnGeometry=false&outSR=&f=json"
         )
-        self.url_excel = "https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/Fallzahlen_Kum_Tab.xlsx?__blob=publicationFile"
+        self.url_excel_fixed = "https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/Fallzahlen_Kum_Tab.xlsx?__blob=publicationFile"
+        self.url_excel = "https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/Fallzahlen_Inzidenz_aktualisiert.xlsx?__blob=publicationFile"
+
         self.url_germany = (
             "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/"
             "rki_key_data_v/FeatureServer/0/query?f=json&where=ObjectId=1&returnGeometry=false&outFields=Inz7T"
@@ -100,6 +102,12 @@ class Connector:
 
     async def get_excel(self):
         async with self.get(self.url_excel) as response:
+            response.raise_for_status()
+            result = await response.read()
+        return result
+
+    async def get_excel_fixed(self):
+        async with self.get(self.url_excel_fixed) as response:
             response.raise_for_status()
             result = await response.read()
         return result
