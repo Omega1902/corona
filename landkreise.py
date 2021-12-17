@@ -1,5 +1,27 @@
 from enum import Enum
 from typing import Iterable, Optional, List
+import logging
+
+LOG = logging.getLogger(__name__)
+
+DEUTSCHLAND = "Deutschland"
+
+BW = "Baden-Württemberg"
+BAYERN = "Bayern"
+BERLIN = "Berlin"
+BRANDENBURG = "Brandenburg"
+BREMEN = "Bremen"
+HAMBURG = "Hamburg"
+HESSEN = "Hessen"
+MV = "Mecklenburg-Vorpommern"
+NIEDERSACHSEN = "Niedersachsen"
+NRW = "Nordrhein-Westfalen"
+RP = "Rheinland-Pfalz"
+SAARLAND = "Saarland"
+SACHSEN = "Sachsen"
+SA = "Sachsen-Anhalt"
+SH = "Schleswig-Holstein"
+THURINGEN = "Thüringen"
 
 
 class Landkreise(Enum):
@@ -21,7 +43,7 @@ class Landkreise(Enum):
     ASCHAFFENBURG_LK = (296, "LK Aschaffenburg")
     AUGSBURG_SK = (305, "SK Augsburg")
     AUGSBURG_LK = (310, "LK Augsburg")
-    AURICH = (51, "LK Aurich")
+    AURICH = (51, "LK Aurich", NIEDERSACHSEN)
     BAD_DUERKHEIM = (170, "LK Bad Dürkheim")
     BAD_KISSINGEN = (297, "LK Bad Kissingen")
     BAD_KREUZNACH = (146, "LK Bad Kreuznach")
@@ -39,7 +61,7 @@ class Landkreise(Enum):
     BERLIN_FRIEDRICHSHAIN_KREUZBERG = (414, "SK Berlin Friedrichshain-Kreuzberg")
     BERLIN_LICHTENBERG = (409, "SK Berlin Lichtenberg")
     BERLIN_MARZAHN_HELLERSDORF = (410, "SK Berlin Marzahn-Hellersdorf")
-    BERLIN_MITTE = (413, "SK Berlin Mitte")
+    BERLIN_MITTE = (413, "SK Berlin Mitte", BERLIN)
     BERLIN_NEUKOELLN = (408, "SK Berlin Neukölln")
     BERLIN_PANKOW = (407, "SK Berlin Pankow")
     BERLIN_REINICKENDORF = (404, "SK Berlin Reinickendorf")
@@ -51,21 +73,21 @@ class Landkreise(Enum):
     BIBERACH = (219, "LK Biberach")
     BIELEFELD = (98, "SK Bielefeld")
     BIRKENFELD = (147, "LK Birkenfeld")
-    BOCHUM = (105, "SK Bochum")
+    BOCHUM = (105, "SK Bochum", NRW)
     BODENSEEKREIS = (220, "LK Bodenseekreis")
-    BONN = (79, "SK Bonn")
+    BONN = (79, "SK Bonn", NRW)
     BORKEN = (93, "LK Borken")
     BOTTROP = (90, "SK Bottrop")
     BRANDENBURG_HAVEL = (326, "SK Brandenburg a.d.Havel")
-    BRAUNSCHWEIG = (17, "SK Braunschweig")
+    BRAUNSCHWEIG = (17, "SK Braunschweig", NIEDERSACHSEN)
     BREISGAU_HOCHSCHWARZWALD = (205, "LK Breisgau-Hochschwarzwald")
-    BREMEN = (62, "SK Bremen")
-    BREMERHAVEN = (63, "SK Bremerhaven")
+    BREMEN = (62, "SK Bremen", BREMEN)
+    BREMERHAVEN = (63, "SK Bremerhaven", BREMEN)
     BURGENLANDKREIS = (371, "LK Burgenlandkreis")
     BOEBLINGEN = (180, "LK Böblingen")
     BOERDE = (370, "LK Börde")
     CALW = (201, "LK Calw")
-    CELLE = (34, "LK Celle")
+    CELLE = (34, "LK Celle", NIEDERSACHSEN)
     CHAM = (262, "LK Cham")
     CHEMNITZ = (352, "SK Chemnitz")
     CLOPPENBURG = (52, "LK Cloppenburg")
@@ -88,8 +110,8 @@ class Landkreise(Enum):
     DITHMARSCHEN = (5, "LK Dithmarschen")
     DONAU_RIES = (317, "LK Donau-Ries")
     DONNERSBERGKREIS = (171, "LK Donnersbergkreis")
-    DORTMUND = (106, "SK Dortmund")
-    DRESDEN = (357, "SK Dresden")
+    DORTMUND = (106, "SK Dortmund", NRW)
+    DRESDEN = (357, "SK Dresden", SACHSEN)
     DUISBURG = (65, "SK Duisburg")
     DUEREN = (83, "LK Düren")
     DUESSELDORF = (64, "SK Düsseldorf")
@@ -144,10 +166,10 @@ class Landkreise(Enum):
     GUETERSLOH = (99, "LK Gütersloh")
     HAGEN = (107, "SK Hagen")
     HALLE = (366, "SK Halle")
-    HAMBURG = (16, "SK Hamburg")
+    HAMBURG = (16, "SK Hamburg", HAMBURG)
     HAMELN_PYRMONT = (29, "LK Hameln-Pyrmont")
     HAMM = (108, "SK Hamm")
-    HANNOVER = (27, "Region Hannover", "Hannover")
+    HANNOVER = (27, "Region Hannover", NIEDERSACHSEN, "Hannover")
     HARBURG = (36, "LK Harburg")
     HARZ = (372, "LK Harz")
     HAVELLAND = (333, "LK Havelland")
@@ -195,7 +217,7 @@ class Landkreise(Enum):
     KULMBACH = (278, "LK Kulmbach")
     KUSEL = (174, "LK Kusel")
     KYFFHAEUSERKREIS = (389, "LK Kyffhäuserkreis")
-    KOELN = (80, "SK Köln")
+    KOELN = (80, "SK Köln", NRW)
     LAHN_DILL_KREIS = (132, "LK Lahn-Dill-Kreis")
     LANDAU = (161, "SK Landau i.d.Pfalz")
     LANDSBERG = (236, "LK Landsberg a.Lech")
@@ -213,7 +235,7 @@ class Landkreise(Enum):
     LUDWIGSHAFEN = (162, "SK Ludwigshafen")
     LUDWIGSLUST_PARCHIM = (351, "LK Ludwigslust-Parchim")
     LOERRACH = (212, "LK Lörrach")
-    LUEBECK = (3, "SK Lübeck")
+    LUEBECK = (3, "SK Lübeck", SH)
     LUECHOW_DANNENBERG = (37, "LK Lüchow-Dannenberg")
     LUENEBURG = (38, "LK Lüneburg")
     MAGDEBURG = (367, "SK Magdeburg")
@@ -241,8 +263,8 @@ class Landkreise(Enum):
     MOENCHENGLADBACH = (68, "SK Mönchengladbach")
     MUEHLDORF_INN = (238, "LK Mühldorf a.Inn")
     MUELHEIM_AN_DER_RUHR = (69, "SK Mülheim a.d.Ruhr")
-    MUENCHEN_SK = (224, "SK München")
-    MUENCHEN_LK = (239, "LK München")
+    MUENCHEN_SK = (224, "SK München", BAYERN)
+    MUENCHEN_LK = (239, "LK München", BAYERN)
     MUENSTER = (92, "SK Münster")
     NECKAR_ODENWALD_KREIS = (198, "LK Neckar-Odenwald-Kreis")
     NEU_ULM = (313, "LK Neu-Ulm")
@@ -255,7 +277,7 @@ class Landkreise(Enum):
     NEUSTADT_WEINSTRASSE = (164, "SK Neustadt a.d.Weinstraße")
     NEUWIED = (150, "LK Neuwied")
     NIENBURG_WESER = (32, "LK Nienburg (Weser)")
-    NORDFRIESLAND = (7, "LK Nordfriesland")
+    NORDFRIESLAND = (7, "LK Nordfriesland", SH)
     NORDHAUSEN = (386, "LK Nordhausen")
     NORDSACHSEN = (364, "LK Nordsachsen")
     NORDWESTMECKLENBURG = (349, "LK Nordwestmecklenburg")
@@ -263,7 +285,7 @@ class Landkreise(Enum):
     NUERNBERG = (284, "SK Nürnberg")
     NUERNBERGER_LAND = (289, "LK Nürnberger Land")
     OBERALLGAEU = (318, "LK Oberallgäu")
-    OBERBERGISCHER_KREIS = (87, "LK Oberbergischer Kreis")
+    OBERBERGISCHER_KREIS = (87, "LK Oberbergischer Kreis", NRW)
     OBERHAUSEN = (70, "SK Oberhausen")
     OBERHAVEL = (335, "LK Oberhavel")
     OBERSPREEWALD_LAUSITZ = (336, "LK Oberspreewald-Lausitz")
@@ -280,7 +302,7 @@ class Landkreise(Enum):
     OSTALBKREIS = (191, "LK Ostalbkreis")
     OSTALLGAEU = (315, "LK Ostallgäu")
     OSTERHOLZ = (39, "LK Osterholz")
-    OSTHOLSTEIN = (8, "LK Ostholstein")
+    OSTHOLSTEIN = (8, "LK Ostholstein", SH)
     OSTPRIGNITZ_RUPPIN = (338, "LK Ostprignitz-Ruppin")
     PADERBORN = (104, "LK Paderborn")
     PASSAU_SK = (247, "SK Passau")
@@ -298,8 +320,8 @@ class Landkreise(Enum):
     RAVENSBURG = (221, "LK Ravensburg")
     RECKLINGHAUSEN = (95, "LK Recklinghausen")
     REGEN = (254, "LK Regen")
-    REGENSBURG_SK = (259, "SK Regensburg")
-    REGENSBURG_LK = (265, "LK Regensburg")
+    REGENSBURG_SK = (259, "SK Regensburg", BAYERN)
+    REGENSBURG_LK = (265, "LK Regensburg", BAYERN)
     REGIONALVERBAND_SAARBRUECKEN = (319, "LK Stadtverband Saarbrücken")
     REMS_MURR_KREIS = (184, "LK Rems-Murr-Kreis")
     REMSCHEID = (71, "SK Remscheid")
@@ -405,8 +427,8 @@ class Landkreise(Enum):
     WILHELMSHAVEN = (49, "SK Wilhelmshaven")
     WITTENBERG = (378, "LK Wittenberg")
     WITTMUND = (61, "LK Wittmund")
-    WOLFENBUETTEL = (25, "LK Wolfenbüttel")
-    WOLFSBURG = (19, "SK Wolfsburg")
+    WOLFENBUETTEL = (25, "LK Wolfenbüttel", NIEDERSACHSEN)
+    WOLFSBURG = (19, "SK Wolfsburg", NIEDERSACHSEN)
     WORMS = (167, "SK Worms")
     WUNSIEDEL_FICHTELGEBIRGE = (280, "LK Wunsiedel i.Fichtelgebirge")
     WUPPERTAL = (73, "SK Wuppertal")
@@ -416,12 +438,13 @@ class Landkreise(Enum):
     ZWEIBRUECKEN = (168, "SK Zweibrücken")
     ZWICKAU = (356, "LK Zwickau")
 
-    def __init__(self, lk_id: int, lk_name: str, name: Optional[str] = None):
+    def __init__(self, lk_id: int, lk_name: str, land: Optional[str] = "", name: Optional[str] = None):
         """Inits a Landkreis.
 
         Args:
             id (int): ID used by the rki dashboard. Needs to be unique.
             lk_name (str): Landkreis name used by the rki dashboard. Needs to be unique.
+            land (Optional[str]): Land where landkreis is located. Defaults to empty string.
             name (Optional[str]): String to display for user. Default will use lk_name and remove prefix 'LK ' and 'SK '
         """
         self._lk_name = lk_name
@@ -433,10 +456,17 @@ class Landkreise(Enum):
         else:
             self._name = name
         self._value_ = lk_id
+        self._land = land
 
     @property
     def name(self):
         return self._name
+
+    @property
+    def land(self):
+        if not self._land:
+            LOG.warning("%s does not have a land configured!", self.lk_name)
+        return self._land
 
     @property
     def lk_name(self):

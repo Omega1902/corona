@@ -10,7 +10,7 @@ Das skript wurde mit python 3.7 und 3.9 getestet. Das aiohttp Modul wird zusätz
 
 ```pip install aiohttp```
 
-Für corona_histroy.py werden außerdem die Module matplotlib, numpy, pandas und openpyxl benötigt.
+Für corona_histroy.py werden außerdem die Module matplotlib, numpy, pandas und xlrd benötigt.
 
 ## Danksagung
 
