@@ -290,6 +290,20 @@ class TestLandkreise(unittest.TestCase):
         pd.testing.assert_frame_equal(result[0], expected_result, atol=0.0001)  # expected result has less decimal places
         self.assertIsNone(result[1])
 
+    def test_format_to_week(self):
+        tests = (
+            (datetime(2020, 12, 26), "2020-52"),
+            (datetime(2020, 12, 31), "2020-53"),
+            (datetime(2021, 1, 3), "2020-53"),
+            (datetime(2021, 1, 4), "2021-01"),
+            (datetime(2021, 12, 31), "2021-52"),
+            (datetime(2022, 1, 2), "2021-52"),
+            (datetime(2022, 1, 3), "2022-01"),
+        )
+        for test in tests:
+            with self.subTest(test=test):
+                self.assertEqual(corona_history.format_to_week(test[0]), test[1])
+
 
 if __name__ == "__main__":
     unittest.main()

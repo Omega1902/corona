@@ -13,6 +13,3 @@ matplotlib = "*"
 black = "==21.11b1"
 pre-commit = "*"
 coverage = "*"
-
-[pipenv]
-allow_prereleases = true
