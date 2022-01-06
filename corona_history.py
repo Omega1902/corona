@@ -41,11 +41,6 @@ def read_excel(path, kreise: Collection[Landkreise], fixed_values: bool = False,
         sheet_names = ["LK_7-Tage-Inzidenz-aktualisiert", "BL_7-Tage-Inzidenz-aktualisiert", "BL_7-Tage-Inzidenz Hosp(aktual)"]
         skip_rows = 2
     dfs = pd.read_excel(path, sheet_name=sheet_names, index_col=0, usecols=my_use_cols, skiprows=skip_rows, engine="xlrd")
-    dates_kreise_orig = dfs[sheet_names[0]].columns[-days:]
-    dates_kreise_datetime = tuple(format_to_datetime(x) for x in dates_kreise_orig)
-    dates_germany_orig = dfs[sheet_names[1]].columns[-days:]
-    dates_germany_datetime = tuple(format_to_datetime(x) for x in dates_germany_orig)
-    assert dates_kreise_datetime == dates_germany_datetime
 
     for df in dfs.values():
         df.index.name = None
@@ -54,28 +49,25 @@ def read_excel(path, kreise: Collection[Landkreise], fixed_values: bool = False,
     df_inzidenz = dfs[sheet_names[0]]
     sort_by_name = lambda landkreis: landkreis.name
     kreise_sorted = list(sorted(kreise, key=sort_by_name))
-    df_inzidenz = df_inzidenz.loc[[x.lk_name for x in kreise_sorted], dates_kreise_orig]
-    df_inzidenz.columns = dates_kreise_datetime
-    df_inzidenz.rename(index=find_landkreis, inplace=True)
+    df_inzidenz = df_inzidenz.loc[[x.lk_name for x in kreise_sorted], df_inzidenz.columns[-days:]]
+    df_inzidenz.rename(index=find_landkreis, columns=format_to_datetime, inplace=True)
 
     # get germany results
-    tmp_ger = dfs[sheet_names[1]].loc["Gesamt", dates_germany_orig]
-    tmp_ger.rename(dict(zip(dates_germany_orig, dates_germany_datetime)), inplace=True)
+    tmp_ger = dfs[sheet_names[1]].loc["Gesamt", dfs[sheet_names[1]].columns[-days:]]
+    tmp_ger.rename(format_to_datetime, inplace=True)
     df_inzidenz.loc[DEUTSCHLAND] = tmp_ger
 
     # get hositalisierung results if available
     df_hosp = None
     if len(sheet_names) > 2:
         df_hosp = dfs[sheet_names[2]]
-        dates_hosp_orig = df_hosp.columns[-days:]
-        dates_hosp_datetime = tuple(format_to_datetime(x) for x in dates_hosp_orig)
-        assert dates_kreise_datetime == dates_hosp_datetime
 
         # get results hosp
         laender = list(sorted({x.land for x in kreise if x.land})) + ["Gesamt"]
-        df_hosp = df_hosp.loc[laender, dates_hosp_orig]
-        df_hosp.columns = dates_hosp_datetime
-        df_hosp.rename(index={"Gesamt": DEUTSCHLAND}, inplace=True)
+        df_hosp = df_hosp.loc[laender, df_hosp.columns[-days:]]
+        df_hosp.rename(index={"Gesamt": DEUTSCHLAND}, columns=format_to_datetime, inplace=True)
+
+        pd.testing.assert_index_equal(df_inzidenz.columns, df_hosp.columns)
 
     return df_inzidenz, df_hosp
 
@@ -103,7 +95,17 @@ def set_graph_title(date_obj):
     return "7-Tages Inzidenzwerte, Stand: " + date_obj.strftime("%d.%m.%Y")
 
 
-async def get_history(landkreise: Collection[Landkreise], fixed_values: bool = False, filename: str=None):
+async def get_history(landkreise: Collection[Landkreise], fixed_values: bool = False, filename: str = None, method=8):
+    """Corona Inzidenzzahlen Historie
+
+    Args:
+        landkreise (Collection[Landkreise]): The landkreise to get
+        fixed_values (bool, optional): Whether to use the fixed inzident values or not. Defaults to False.
+        filename (str, optional): Will save plot as imp with given name. If empty or None the plot will just be displayed. Defaults to None.
+        method (str|int, optional): If set to an int, will use these as days to plot.
+                                    If set to 'w' or 'week', will plot all weeks.
+                                    If set to 'm' or 'month', will plot all months. Defaults to 8.
+    """
     # get data online
     async with corona.Connector() as con:
         if fixed_values:
@@ -111,20 +113,32 @@ async def get_history(landkreise: Collection[Landkreise], fixed_values: bool = F
         else:
             binary_excel = await con.get_excel()
     # read data
-    inzidenzen_result, result_hosp = read_excel(binary_excel, landkreise, fixed_values)
+    days = 0
+    try:
+        if method is None:
+            method = 8
+        else:
+            method = int(method)
+        days = method
+    except ValueError:
+        pass
+    inzidenzen_result, result_hosp = read_excel(binary_excel, landkreise, fixed_values, days)
 
     # show data
-    last_date = inzidenzen_result.columns[-1]
-    inzidenzen_result.rename(columns=date_formatter, inplace=True)
-    if result_hosp is not None:
-        result_hosp.rename(columns=date_formatter, inplace=True)
-    print_result(inzidenzen_result, result_hosp)
-    title = set_graph_title(last_date)
-    show_graph(inzidenzen_result, result_hosp, title, filename)
+    if isinstance(method, int):
+        last_date = inzidenzen_result.columns[-1]
+        inzidenzen_result.rename(columns=date_formatter, inplace=True)
+        if result_hosp is not None:
+            result_hosp.rename(columns=date_formatter, inplace=True)
+        print_result(inzidenzen_result, result_hosp)
+        title = set_graph_title(last_date)
+        show_graph(inzidenzen_result, result_hosp, title, filename)
+    else:
+        show_boxplot(inzidenzen_result.T, method, filename)
 
 
 def dataframe_max(df: pd.DataFrame, default=0):
-    """ returns the max value of DataFrame
+    """returns the max value of DataFrame
 
     Args:
         df (pd.DataFrame): DataFrame containing numbers
@@ -140,7 +154,7 @@ def dataframe_max(df: pd.DataFrame, default=0):
 
 
 def get_lines_inz(df: pd.DataFrame):
-    """ Returns the lines for inzidenzen which are relevant for warn areas
+    """Returns the lines for inzidenzen which are relevant for warn areas
     https://www.niedersachsen.de/assets/image/216288
 
     Args:
@@ -156,7 +170,7 @@ def get_lines_inz(df: pd.DataFrame):
 
 
 def get_lines_hosp(df: pd.DataFrame):
-    """ Returns the lines for hospitalisierung which are relevant for warn areas
+    """Returns the lines for hospitalisierung which are relevant for warn areas
     https://www.niedersachsen.de/assets/image/216288
 
     Args:
@@ -169,6 +183,15 @@ def get_lines_hosp(df: pd.DataFrame):
     result = [x for x in (3, 6, 9) if x - 1 <= max_val]
     result.extend(range(15, int(max_val) + 3, 5))
     return result
+
+
+def save_or_show(filename: str = None, fig=None):
+    if filename:
+        plt.savefig(filename, bbox_inches="tight")
+    else:
+        if fig:
+            fig.tight_layout()
+        plt.show()
 
 
 def fill_ax(ax, df: pd.DataFrame, hgrid_lines: Collection[int]):
@@ -205,25 +228,75 @@ def show_graph(df1: pd.DataFrame, df2: pd.DataFrame = None, title: str = None, f
     if title:
         fig.suptitle(title)
 
-    if filename:
-        plt.savefig(filename, bbox_inches='tight')
+    save_or_show(filename, fig)
+
+
+def _filter_by_min(df: pd.DataFrame, column, mininmum: int):
+    counts = df[column].value_counts()
+    return df[df[column].isin(counts[counts >= mininmum].index)]
+
+
+def by_month(df: pd.DataFrame, **kwargs):
+    month_str = lambda date_obj: date_obj.strftime("%Y-%m")
+    df["Monat"] = df.index.to_series().apply(month_str)
+    df = _filter_by_min(df, "Monat", 7)
+    return df.boxplot(by="Monat", **kwargs)
+
+
+def format_to_week(date_obj: datetime):
+    """Formats like date_obj to YYYY-WW using isocalendar(). Therefore the calendar week is between "01" and "53", e.g. datetime(2021, 1, 3) -> "2020-53"
+
+    Args:
+        date_obj (datetime.datetime): Datetime object to format
+
+    Returns:
+        str: String representation of the calendar week including year "YYYY-WW"
+    """
+    year, month, _ = date_obj.isocalendar()
+    return f"{year}-{month:02}"
+
+
+def by_week(df: pd.DataFrame, **kwargs):
+    df["KW"] = df.index.to_series().apply(format_to_week)
+    df = _filter_by_min(df, "KW", 3)
+    return df.boxplot(by="KW", **kwargs)
+
+
+def show_boxplot(df: pd.DataFrame, method: str, filename: str = None):
+    if method.lower().startswith("m"):
+        axes_series_2dim = by_month(df, rot=45)
+    elif method.lower().startswith("w"):
+        axes_series_2dim = by_week(df, rot=45)
     else:
-        fig.tight_layout()
-        plt.show()
+        raise ValueError("method does not start with 'w' or 'm'!")
+    for axes_series in axes_series_2dim:
+        if isinstance(axes_series, (pd.Series, np.ndarray)):
+            for ax in axes_series:
+                ax.set_ylim(bottom=0)
+        else:
+            axes_series.set_ylim(bottom=0)
+
+    save_or_show(filename)
 
 
 if __name__ == "__main__":
     PARSER = argparse.ArgumentParser(description="Corona Inzidenzzahlen Historie")
     PARSER.add_argument("-fix", action="store_true", help="Uses fixed values instead of corrected")
-    PARSER.add_argument("-s", "--save", help="Saves as png. Default will just show it.")
+    PARSER.add_argument("-s", "--save", help="Saves as png with given filename. Default will just show it.")
+    PARSER.add_argument(
+        "-t",
+        "--type",
+        help="If set to an int, will use these as days to plot. If set to 'w' or 'week', will plot all weeks. If set to 'm' or 'month', will plot all months.",
+    )
 
     ARGS = PARSER.parse_args()
     FIX = ARGS.fix
     SAVE = ARGS.save
+    TYPE = ARGS.type
     LANDKREISE = (
         Landkreise.WOLFSBURG,
         Landkreise.OBERBERGISCHER_KREIS,
         Landkreise.KOELN,
         Landkreise.NORDFRIESLAND,
     )
-    asyncio.run(get_history(LANDKREISE, FIX, SAVE))
+    asyncio.run(get_history(LANDKREISE, FIX, SAVE, TYPE))
