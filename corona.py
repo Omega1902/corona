@@ -48,14 +48,7 @@ class Connector:
             "rki_key_data_v/FeatureServer/0/query?f=json&where=ObjectId=1&returnGeometry=false&outFields=Inz7T"
         )
         self._session = None
-        self.set_proxy()
-
-    def set_proxy(self):
-        try:
-            self.proxy = os.environ["HTTP_PROXY"]
-        except KeyError:
-            self.proxy = None
-            logging.info("Not using Proxy.")
+        self.proxy = os.getenv("HTTP_PROXY")
 
     @classmethod
     def parse_answer(cls, response_json) -> CasesResult:

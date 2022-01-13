@@ -95,30 +95,33 @@ def set_graph_title(date_obj):
     return "7-Tages Inzidenzwerte, Stand: " + date_obj.strftime("%d.%m.%Y")
 
 
-async def get_history(landkreise: Collection[Landkreise], fixed_values: bool = False, filename: str = None, method=8):
+async def get_history(landkreise: Collection[Landkreise], fixed_values: bool = False, output_file: str = None, method=8, input_file: str = None):
     """Corona Inzidenzzahlen Historie
 
     Args:
         landkreise (Collection[Landkreise]): The landkreise to get
         fixed_values (bool, optional): Whether to use the fixed inzident values or not. Defaults to False.
-        filename (str, optional): Will save plot as imp with given name. If empty or None the plot will just be displayed. Defaults to None.
+        output_file (str, optional): Will save plot as imp with given name. If empty or None the plot will just be displayed. Defaults to None.
         method (str|int, optional): If set to an int, will use these as days to plot.
                                     If set to 'w' or 'week', will plot all weeks.
                                     If set to 'm' or 'month', will plot all months. Defaults to 8.
+        input_file (str, optional): Will save plot as imp with given name. If empty or None the plot will just be displayed. Defaults to None.
     """
-    # get data online
-    async with corona.Connector() as con:
-        if fixed_values:
-            binary_excel = await con.get_excel_fixed()
-        else:
-            binary_excel = await con.get_excel()
+
+    if input_file:
+        with open(input_file, "br") as excel_file:
+            binary_excel = excel_file.read()
+    else:
+        # get data online
+        async with corona.Connector() as con:
+            if fixed_values:
+                binary_excel = await con.get_excel_fixed()
+            else:
+                binary_excel = await con.get_excel()
     # read data
     days = 0
     try:
-        if method is None:
-            method = 8
-        else:
-            method = int(method)
+        method = 8 if method is None else int(method)
         days = method
     except ValueError:
         pass
@@ -132,9 +135,9 @@ async def get_history(landkreise: Collection[Landkreise], fixed_values: bool = F
             result_hosp.rename(columns=date_formatter, inplace=True)
         print_result(inzidenzen_result, result_hosp)
         title = set_graph_title(last_date)
-        show_graph(inzidenzen_result, result_hosp, title, filename)
+        show_graph(inzidenzen_result, result_hosp, title, output_file)
     else:
-        show_boxplot(inzidenzen_result.T, method, filename)
+        show_boxplot(inzidenzen_result.T, method, output_file)
 
 
 def dataframe_max(df: pd.DataFrame, default=0):
@@ -153,50 +156,99 @@ def dataframe_max(df: pd.DataFrame, default=0):
     return max_val
 
 
-def get_lines_inz(df: pd.DataFrame):
+def get_lines_inz(max_val: float):
     """Returns the lines for inzidenzen which are relevant for warn areas
     https://www.niedersachsen.de/assets/image/216288
 
     Args:
-        df (pd.DataFrame): DataFrame containing all relevant values to display
+        max_val (int|float): Max value
 
     Returns:
         list[int]: All lines to display
     """
-    max_val = dataframe_max(df)
     result = [x for x in (35,) if x - 5 < max_val]
     result.extend(range(100, int(max_val) + 16, 100))
     return result
 
 
-def get_lines_hosp(df: pd.DataFrame):
+def get_lines_hosp(max_val: float):
     """Returns the lines for hospitalisierung which are relevant for warn areas
     https://www.niedersachsen.de/assets/image/216288
 
     Args:
-        df (pd.DataFrame): DataFrame containing all relevant values to display
+        max_val (int|float): Max value
 
     Returns:
         list[int]: All lines to display
     """
-    max_val = dataframe_max(df)
     result = [x for x in (3, 6, 9) if x - 1 <= max_val]
     result.extend(range(15, int(max_val) + 3, 5))
     return result
 
 
-def save_or_show(filename: str = None, fig=None):
-    if filename:
-        plt.savefig(filename, bbox_inches="tight")
+def save_or_show(output_file: str = None, fig=None):
+    if output_file:
+        plt.savefig(output_file, bbox_inches="tight")
     else:
         if fig:
             fig.tight_layout()
         plt.show()
 
 
-def fill_ax(ax, df: pd.DataFrame, hgrid_lines: Collection[int]):
+def _get_colors(min_values: Collection[int], max_values: Collection[int], count: int):
+    result = np.linspace(min_values, max_values, count)
+    return [f"#{int(round(res[0])):02x}{int(round(res[1])):02x}{int(round(res[2])):02x}" for res in result]
+
+
+def get_colors(df1, df2):
+    # colors
+    all_colors = pd.DataFrame(
+        (
+            ("2blue", "min", 0, 0, 170),
+            ("2blue", "max", 64, 166, 255),
+            ("5yellow", "min", 202, 149, 32),
+            ("5yellow", "max", 221, 221, 0),
+            # ("2orange", "min", 216, 75, 32),
+            # ("2orange", "max", 255, 144, 43),
+            ("1green", "min", 30, 117, 29),
+            ("1green", "max", 37, 231, 18),
+            ("3violet", "min", 153, 00, 153),
+            ("3violet", "max", 222, 124, 222),
+            ("4brown", "min", 76, 47, 38),
+            ("4brown", "max", 180, 125, 73),
+            ("6red", "min", 136, 0, 0),
+            ("6red", "max", 241, 86, 71),
+        ),
+        columns=("name", "type", "r", "g", "b"),
+    )
+    all_colors.set_index(["name", "type"], inplace=True)
+    # all_hatches = ("", "/", "\\", "x")
+    bundeslaender = df2.index.drop(DEUTSCHLAND)
+    colors_count = min(len(bundeslaender), len(all_colors) // 2)
+    color_indexes = all_colors.index.levels[0]
+
+    all_lks = df1.index.drop(DEUTSCHLAND)
+    result_lks = {}
+    result_bundesland = {}
+    for i, bundesland in enumerate(bundeslaender):
+        color_name = color_indexes[i % colors_count]
+        color_df = all_colors.loc[color_name]
+        lks = [lk for lk in all_lks if lk.land == bundesland]
+        color_variations = max(len(lks) + 1, 7)
+        colors = _get_colors(color_df.loc["min"].values, color_df.loc["max"].values, color_variations)
+        result_bundesland[bundesland] = colors.pop(len(colors) // 2)
+        if len(lks) == 1:
+            result_lks[lks[0]] = result_bundesland[bundesland]
+        else:
+            for lk in lks:
+                result_lks[lk] = colors.pop(len(colors) // 2)
+
+    return result_lks, result_bundesland
+
+
+def fill_ax(ax, df: pd.DataFrame, hgrid_lines: Collection[int], colors=None):
     # plot all items except DEUTSCHLAND
-    ax = df.drop(DEUTSCHLAND).T.plot.bar(ax=ax, rot=0)
+    ax = df.drop(DEUTSCHLAND).T.plot.bar(ax=ax, rot=0, color=colors)
 
     # DEUTSCHLAND should appear as line instead of own bar
     series_deutschland = df.loc[DEUTSCHLAND]
@@ -210,25 +262,69 @@ def fill_ax(ax, df: pd.DataFrame, hgrid_lines: Collection[int]):
         ax.axhline(y=line, color="grey", linestyle="dotted")
 
 
-def show_graph(df1: pd.DataFrame, df2: pd.DataFrame = None, title: str = None, filename: str = None):
+def get_bg_colors(max_val: float, hgrid_lines: Collection[float], column_count: int):
+    result = []
+    bgcolors = ("#00ff00", "#ffff00", "#ffa500", "#ff0000")
+    data_count = 2
+    x = [-0.5, column_count + 0.5]
+    y1 = [0] * data_count
+    if not hgrid_lines:
+        y2 = [max_val] * data_count
+        temp = (x, y1, y2, bgcolors[0])
+        result.append(temp)
+        return result
+    y2 = y1
+    for i, line in enumerate(hgrid_lines):
+        y1 = y2
+        if i + 1 == len(bgcolors):
+            line = max(hgrid_lines[-1], max_val)
+        y2 = [line] * data_count
+        color = bgcolors[min(i, len(bgcolors))]
+        temp = (x, y1, y2, color)
+        result.append(temp)
+        if i + 1 == len(bgcolors):
+            return result
+    return result
+
+
+def add_bg_colors(ax, max_val, hgrid_lines, column_count: int):
+    bg_colors = get_bg_colors(max_val, hgrid_lines, column_count)
+    for bg_color in bg_colors:
+        ax.fill_between(bg_color[0], bg_color[1], bg_color[2], alpha=0.2, linewidth=0, color=bg_color[3])
+
+
+def show_graph(df1: pd.DataFrame, df2: pd.DataFrame = None, title: str = None, output_file: str = None):
     if df2 is None:
+        # calc horizontal grid lines
+        max_val = dataframe_max(df1)
+        hgrid_lines = get_lines_inz(max_val)
+
+        # plot
         fig, ax1 = plt.subplots(1, 1)
-        hgrid_lines = get_lines_inz(df1)
+        add_bg_colors(ax1, max_val, hgrid_lines, len(df1.columns))
         fill_ax(ax1, df1, hgrid_lines)
         ax1.set_ylabel("Inzidenz fix")
     else:
+        # colors and lines
+        colors_ax1, colors_ax2 = get_colors(df1, df2)
+        max_val1 = dataframe_max(df1)
+        max_val2 = dataframe_max(df2)
+        hgrid_lines1 = get_lines_inz(max_val1)
+        hgrid_lines2 = get_lines_hosp(max_val2)
+
+        # plot
         fig, (ax1, ax2) = plt.subplots(2, 1)
-        hgrid_lines1 = get_lines_inz(df1)
-        fill_ax(ax1, df1, hgrid_lines1)
-        hgrid_lines2 = get_lines_hosp(df2)
-        fill_ax(ax2, df2, hgrid_lines2)
+        add_bg_colors(ax1, max_val1, hgrid_lines1, len(df1.columns))
+        add_bg_colors(ax2, max_val2, hgrid_lines2, len(df2.columns))
+        fill_ax(ax1, df1, hgrid_lines1, colors_ax1)
+        fill_ax(ax2, df2, hgrid_lines2, colors_ax2)
         ax1.set_ylabel("Inzidenz akt")
         ax2.set_ylabel("Hospitalierung akt")
 
     if title:
         fig.suptitle(title)
 
-    save_or_show(filename, fig)
+    save_or_show(output_file, fig)
 
 
 def _filter_by_min(df: pd.DataFrame, column, mininmum: int):
@@ -262,7 +358,7 @@ def by_week(df: pd.DataFrame, **kwargs):
     return df.boxplot(by="KW", **kwargs)
 
 
-def show_boxplot(df: pd.DataFrame, method: str, filename: str = None):
+def show_boxplot(df: pd.DataFrame, method: str, output_file: str = None):
     if method.lower().startswith("m"):
         axes_series_2dim = by_month(df, rot=45)
     elif method.lower().startswith("w"):
@@ -276,7 +372,7 @@ def show_boxplot(df: pd.DataFrame, method: str, filename: str = None):
         else:
             axes_series.set_ylim(bottom=0)
 
-    save_or_show(filename)
+    save_or_show(output_file)
 
 
 if __name__ == "__main__":
@@ -288,15 +384,17 @@ if __name__ == "__main__":
         "--type",
         help="If set to an int, will use these as days to plot. If set to 'w' or 'week', will plot all weeks. If set to 'm' or 'month', will plot all months.",
     )
+    PARSER.add_argument("-i", "--input", help="If set will use this as input-excel file. '-fix' parameter must be set accordingly.")
 
     ARGS = PARSER.parse_args()
     FIX = ARGS.fix
     SAVE = ARGS.save
     TYPE = ARGS.type
+    INPUT = ARGS.input
     LANDKREISE = (
         Landkreise.WOLFSBURG,
         Landkreise.OBERBERGISCHER_KREIS,
         Landkreise.KOELN,
         Landkreise.NORDFRIESLAND,
     )
-    asyncio.run(get_history(LANDKREISE, FIX, SAVE, TYPE))
+    asyncio.run(get_history(LANDKREISE, FIX, SAVE, TYPE, INPUT))
