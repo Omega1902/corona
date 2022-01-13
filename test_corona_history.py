@@ -115,43 +115,75 @@ class TestLandkreise(unittest.TestCase):
             with self.subTest(test=test):
                 self.assertEqual(corona_history.format_to_datetime(test[0]), test[1])
 
-    def test_get_lines_inz(self):
+    def test_dataframe_max(self):
         tests = (
-            (None, []),
-            ([], []),
-            ([[], []], []),
-            ([[1, 2, 3], [3, 4, 2], [2, 4, 0]], []),
-            ([[1, 2, 3], [29.999, 4, 5], [5, 6, 7]], []),
-            ([[1, 2, 3], [30.001, 4, 5], [5, 6, 7]], [35]),
-            ([[1, 2, 3], [30.001, 46, 5], [5, 6, 7]], [35]),
-            ([[1, 2, 3], [30.001, 46, 5], [85, 6, 7]], [35, 100]),
-            ([[1, 2, 3], [30.001, 46, 5], [130, 6, 7]], [35, 100]),
-            ([[1, 2, 3], [30.001, 46, 5], [190, 6, 7]], [35, 100, 200]),
-            ([[1, 2, 300], [30.001, 46, 5], [190, 6, 7]], [35, 100, 200, 300]),
+            (None, 0),
+            ([], 0),
+            ([[], []], 0),
+            ([[1, 2, 3], [3, 4, 2], [2, 4, 0]], 4),
+            ([[1, 2, 3], [29.999, 4, 5], [5, 6, 7]], 29.999),
+            ([[1, 2, 3], [30.001, 4, 5], [5, 6, 7]], 30.001),
+            ([[1, 2, 3], [30.001, 46, 5], [5, 6, 7]], 46),
+            ([[1, 2, 3], [30.001, 46, 5], [85, 6, 7]], 85),
+            ([[1, 2, 3], [30.001, 46, 5], [130, 6, 7]], 130),
+            ([[1, 2, 3], [30.001, 46, 5], [190, 6, 7]], 190),
+            ([[1, 2, 300], [30.001, 46, 5], [190, 6, 7]], 300),
         )
         for test in tests:
             with self.subTest(test=test):
-                self.assertEqual(corona_history.get_lines_inz(pd.DataFrame(test[0])), test[1])
+                self.assertEqual(corona_history.dataframe_max(pd.DataFrame(test[0])), test[1])
+
+    def test_get_lines_inz(self):
+        tests = (
+            (0, []),
+            (29.999, []),
+            (30.001, [35]),
+            (46, [35]),
+            (85, [35, 100]),
+            (130, [35, 100]),
+            (190, [35, 100, 200]),
+            (300, [35, 100, 200, 300]),
+        )
+        for test in tests:
+            with self.subTest(test=test):
+                self.assertEqual(corona_history.get_lines_inz(test[0]), test[1])
 
     def test_get_lines_hosp(self):
         tests = (
-            (None, []),
-            ([], []),
-            ([[], []], []),
-            ([[1, 1.2, 1.3], [1.3, 1.4, 1.2], [0.2, 0.4, 0]], []),
-            ([[1, 2, 3], [3, 4, 2], [2, 4, 0]], [3]),
-            ([[1, 2, 3], [3, 4, 5], [5, 5, 0]], [3, 6]),
-            ([[1, 2, 3], [3, 4, 5], [5, 7, 0]], [3, 6]),
-            ([[1, 2, 3], [3, 4, 5], [5, 8, 0]], [3, 6, 9]),
-            ([[1, 2, 3], [3, 4, 5], [5, 12.9, 0]], [3, 6, 9]),
-            ([[1, 2, 3], [3, 4, 5], [5, 13, 0]], [3, 6, 9, 15]),
-            ([[1, 2, 3], [3, 4, 5], [5, 18, 0]], [3, 6, 9, 15, 20]),
-            ([[1, 22.9, 3], [3, 4, 5], [5, 18, 0]], [3, 6, 9, 15, 20]),
-            ([[1, 23, 3], [3, 4, 5], [5, 18, 0]], [3, 6, 9, 15, 20, 25]),
+            (0, []),
+            (1.4, []),
+            (3, [3]),
+            (5, [3, 6]),
+            (7.999, [3, 6]),
+            (8, [3, 6, 9]),
+            (12.9, [3, 6, 9]),
+            (13, [3, 6, 9, 15]),
+            (18, [3, 6, 9, 15, 20]),
+            (22.9, [3, 6, 9, 15, 20]),
+            (23, [3, 6, 9, 15, 20, 25]),
         )
         for test in tests:
             with self.subTest(test=test):
-                self.assertEqual(corona_history.get_lines_hosp(pd.DataFrame(test[0])), test[1])
+                self.assertEqual(corona_history.get_lines_hosp(test[0]), test[1])
+
+    def test_get_bg_colors(self):
+        tests = (
+            ((1.4, tuple(), 8), [([-0.5, 8.5], [0, 0], [1.4, 1.4], "#00ff00")]),
+            ((3, (3,), 8), [([-0.5, 8.5], [0, 0], [3, 3], "#00ff00")]),
+            ((5, (3, 6), 8), [([-0.5, 8.5], [0, 0], [3, 3], "#00ff00"), ([-0.5, 8.5], [3, 3], [6, 6], "#ffff00")]),
+            (
+                (23, (3, 6, 9, 15, 20, 25), 8),
+                [
+                    ([-0.5, 8.5], [0, 0], [3, 3], "#00ff00"),
+                    ([-0.5, 8.5], [3, 3], [6, 6], "#ffff00"),
+                    ([-0.5, 8.5], [6, 6], [9, 9], "#ffa500"),
+                    ([-0.5, 8.5], [9, 9], [25, 25], "#ff0000"),
+                ],
+            ),
+        )
+        for test in tests:
+            with self.subTest(test=test):
+                self.assertEqual(corona_history.get_bg_colors(*test[0]), test[1])
 
     def test_excel_file(self):
         with open(get_testdata_file("Fallzahlen_Inzidenz_aktualisiert.xlsx"), "br") as excel_file:
@@ -303,6 +335,34 @@ class TestLandkreise(unittest.TestCase):
         for test in tests:
             with self.subTest(test=test):
                 self.assertEqual(corona_history.format_to_week(test[0]), test[1])
+
+    def test_get_colors_integrety(self):
+        """Tests if the method returns usable responses - not if the color values are correct"""
+        with open(get_testdata_file("Fallzahlen_Inzidenz_aktualisiert.xlsx"), "br") as excel_file:
+            excel = excel_file.read()
+        landkreise = (
+            Landkreise.BERLIN_MITTE,
+            Landkreise.HANNOVER,
+            Landkreise.AURICH,
+            Landkreise.NORDFRIESLAND,
+            Landkreise.LUEBECK,
+            Landkreise.HAMBURG,
+            Landkreise.WOLFSBURG,
+            Landkreise.OBERBERGISCHER_KREIS,
+            Landkreise.KOELN,
+            Landkreise.OSTHOLSTEIN,
+        )
+        df1, df2 = corona_history.read_excel(excel, landkreise, False, 8)
+        colors_ax1, colors_ax2 = corona_history.get_colors(df1, df2)
+
+        # assert keys have the correct values
+        self.assertEqual(set(df1.drop(DEUTSCHLAND).index), set(colors_ax1.keys()))
+        self.assertEqual(set(df2.drop(DEUTSCHLAND).index), set(colors_ax2.keys()))
+
+        # assert values are valid farbcodes
+        for colors_ax in (colors_ax1, colors_ax2):
+            for color in colors_ax.values():
+                self.assertRegex(color, r"^#[\da-fA-F]{6}$")
 
 
 if __name__ == "__main__":
