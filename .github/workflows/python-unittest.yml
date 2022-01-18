@@ -28,3 +28,8 @@ jobs:
     - name: Test with unittest
       run: |
         pipenv run python -m unittest
+    - name: Test with flake8
+      run: |
+        pipenv install flake8
+        pipenv run flake8 --version
+        pipenv run flake8 .
