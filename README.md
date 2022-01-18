@@ -1,12 +1,15 @@
 # Corona script
 
+[![unittest](https://github.com/Omega1902/corona/actions/workflows/python-unittest.yml/badge.svg?branch=main)](https://github.com/Omega1902/corona/actions/workflows/python-unittest.yml)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 ## Ziel
 
 Aktuell überprüft sehr viele Menschen (so auch ich) annähernd täglich die Corona-Inzidenzzahlen an. Um jedoch genau die Zahlen zu bekommen, die mich wirklich interessieren und das schnell, habe ich dieses Skript geschrieben.
 
 ## Vorraussetzungen
 
-Das skript wurde mit python 3.7 und 3.9 getestet. Das aiohttp Modul wird zusätzlich benötigt.
+Das skript wurde mit python versionen von 3.7 bis 3.10 entwickelt und getestet. Das aiohttp Modul wird zusätzlich benötigt.
 
 ```pip install aiohttp```
 
