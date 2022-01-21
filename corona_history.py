@@ -268,7 +268,7 @@ def get_bg_colors(max_val: float, hgrid_lines: Collection[float], column_count: 
     data_count = 2
     x = [-0.5, column_count + 0.5]
     y1 = [0] * data_count
-    if not hgrid_lines:
+    if not hgrid_lines:  # no hgrid lines
         y2 = [max_val] * data_count
         temp = (x, y1, y2, bgcolors[0])
         result.append(temp)
@@ -276,14 +276,20 @@ def get_bg_colors(max_val: float, hgrid_lines: Collection[float], column_count: 
     y2 = y1
     for i, line in enumerate(hgrid_lines):
         y1 = y2
-        if i + 1 == len(bgcolors):
+        if i + 1 == len(bgcolors):  # if last bgcolor set higher border to highest value
             line = max(hgrid_lines[-1], max_val)
         y2 = [line] * data_count
-        color = bgcolors[min(i, len(bgcolors))]
+        color = bgcolors[i]
         temp = (x, y1, y2, color)
         result.append(temp)
         if i + 1 == len(bgcolors):
-            return result
+            return result  # returns if all bgcolors have been used
+    if len(hgrid_lines) < len(bgcolors) and max_val > hgrid_lines[-1]:
+        y1 = y2
+        y2 = [max_val] * data_count
+        color = bgcolors[len(hgrid_lines)]
+        temp = (x, y1, y2, color)
+        result.append(temp)
     return result
 
 
