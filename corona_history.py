@@ -24,7 +24,7 @@ def format_to_datetime(excel_date):
     return datetime.fromordinal(datetime(1900, 1, 1).toordinal() + int(excel_date) - 2)
 
 
-def read_excel(path, kreise: Collection[Landkreise], fixed_values: bool = False, days: int = 8):
+def read_excel(path, kreise: Collection[Landkreise], fixed_values: bool = False, days: int = 8, archive: bool = False):
     def my_use_cols(index):
         if index in ("Unnamed: 0", "LK", "MeldeLandkreisBundesland", "MeldeLandkreis"):
             return True
@@ -36,6 +36,8 @@ def read_excel(path, kreise: Collection[Landkreise], fixed_values: bool = False,
 
     if fixed_values:
         sheet_names = ["LK_7-Tage-Inzidenz (fixiert)", "BL_7-Tage-Inzidenz (fixiert)"]
+        if not archive:
+            sheet_names.append("BL_7-Tage-Inz Hospital(fixiert)")
         skip_rows = 4
     else:
         sheet_names = ["LK_7-Tage-Inzidenz-aktualisiert", "BL_7-Tage-Inzidenz-aktualisiert", "BL_7-Tage-Inzidenz Hosp(aktual)"]
@@ -107,25 +109,32 @@ async def get_history(landkreise: Collection[Landkreise], fixed_values: bool = F
                                     If set to 'm' or 'month', will plot all months. Defaults to 8.
         input_file (str, optional): Will save plot as imp with given name. If empty or None the plot will just be displayed. Defaults to None.
     """
-
-    if input_file:
-        with open(input_file, "br") as excel_file:
-            binary_excel = excel_file.read()
-    else:
-        # get data online
-        async with corona.Connector() as con:
-            if fixed_values:
-                binary_excel = await con.get_excel_fixed()
-            else:
-                binary_excel = await con.get_excel()
-    # read data
     days = 0
     try:
         method = 8 if method is None else int(method)
         days = method
     except ValueError:
         pass
-    inzidenzen_result, result_hosp = read_excel(binary_excel, landkreise, fixed_values, days)
+
+    if input_file:
+        with open(input_file, "br") as excel_file:
+            binary_excels = [excel_file.read()]
+    else:
+        # get data online
+        async with corona.Connector() as con:
+            if fixed_values:
+                binary_excels = [con.get_excel_fixed()]
+                if days <= 0:
+                    binary_excels.append(con.get_excel_fixed_archive())
+                binary_excels = await asyncio.gather(*binary_excels)
+
+            else:
+                binary_excels = [await con.get_excel()]
+    # read data
+    inzidenzen_result, result_hosp = read_excel(binary_excels[0], landkreise, fixed_values, days, False)
+    if len(binary_excels) == 2:
+        inzidenzen_result2, _ = read_excel(binary_excels[1], landkreise, fixed_values, days, True)
+        inzidenzen_result = inzidenzen_result.join(inzidenzen_result2)
 
     # show data
     if isinstance(method, int):
@@ -135,7 +144,7 @@ async def get_history(landkreise: Collection[Landkreise], fixed_values: bool = F
             result_hosp.rename(columns=date_formatter, inplace=True)
         print_result(inzidenzen_result, result_hosp)
         title = set_graph_title(last_date)
-        show_graph(inzidenzen_result, result_hosp, title, output_file)
+        show_graph(inzidenzen_result, result_hosp, title, output_file, fixed_values)
     else:
         show_boxplot(inzidenzen_result.T, method, output_file)
 
@@ -299,7 +308,7 @@ def add_bg_colors(ax, max_val, hgrid_lines, column_count: int):
         ax.fill_between(bg_color[0], bg_color[1], bg_color[2], alpha=0.2, linewidth=0, color=bg_color[3])
 
 
-def show_graph(df1: pd.DataFrame, df2: pd.DataFrame = None, title: str = None, output_file: str = None):
+def show_graph(df1: pd.DataFrame, df2: pd.DataFrame = None, title: str = None, output_file: str = None, fixed_values: bool = False):
     if df2 is None:
         # calc horizontal grid lines
         max_val = dataframe_max(df1)
@@ -309,7 +318,9 @@ def show_graph(df1: pd.DataFrame, df2: pd.DataFrame = None, title: str = None, o
         fig, ax1 = plt.subplots(1, 1)
         add_bg_colors(ax1, max_val, hgrid_lines, len(df1.columns))
         fill_ax(ax1, df1, hgrid_lines)
-        ax1.set_ylabel("Inzidenz fix")
+        label = "Inzidenz fix" if fixed_values else "Inzidenz akt"
+        ax1.set_ylabel(label)
+
     else:
         # colors and lines
         colors_ax1, colors_ax2 = get_colors(df1, df2)
@@ -324,8 +335,10 @@ def show_graph(df1: pd.DataFrame, df2: pd.DataFrame = None, title: str = None, o
         add_bg_colors(ax2, max_val2, hgrid_lines2, len(df2.columns))
         fill_ax(ax1, df1, hgrid_lines1, colors_ax1)
         fill_ax(ax2, df2, hgrid_lines2, colors_ax2)
-        ax1.set_ylabel("Inzidenz akt")
-        ax2.set_ylabel("Hospitalierung akt")
+        label1 = "Inzidenz fix" if fixed_values else "Inzidenz akt"
+        ax1.set_ylabel(label1)
+        label2 = "Hospitalierung fix" if fixed_values else "Hospitalierung akt"
+        ax2.set_ylabel(label2)
 
     if title:
         fig.suptitle(title)
