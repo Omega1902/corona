@@ -6,7 +6,7 @@ from corona import Connector
 async def check_germany():
     async with Connector() as con:
         result = await con.get_germany()
-    assert isinstance(result, float)
+    assert isinstance(result, (float, int))
     # assert result == 14.5 # enable line and put the real result of the current day for testing
 
 
