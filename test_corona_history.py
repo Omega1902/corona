@@ -10,7 +10,7 @@ def get_testdata_file(filename):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_data", filename)
 
 
-class TestLandkreise(unittest.TestCase):
+class TestCoronaHistory(unittest.TestCase):
     inzidenzen_result = [
         {
             "name": "SK Köln",
@@ -435,6 +435,32 @@ class TestLandkreise(unittest.TestCase):
         for colors_ax in (colors_ax1, colors_ax2):
             for color in colors_ax.values():
                 self.assertRegex(color, r"^#[\da-fA-F]{6}$")
+
+    def test_date_formatter(self):
+        tests = (
+            (datetime(2022, 6, 10), "10.06."),
+            (datetime(2020, 2, 29), "29.02."),
+            (datetime(2022, 6, 1), "01.06."),
+            (datetime(2022, 12, 10), "10.12."),
+            (datetime(2022, 12, 1), "01.12."),
+        )
+        for test in tests:
+            with self.subTest(test=test):
+                self.assertEqual(corona_history.date_formatter(test[0]), test[1])
+
+    def test_float_formatter(self):
+        tests = (
+            (1, "1,0"),
+            (1.0, "1,0"),
+            (1.212312, "1,2"),
+            (100.98, "101,0"),
+            (1000.78, "1.000,8"),
+            (1234, "1.234,0"),
+            (1000000.78, "1.000.000,8"),
+        )
+        for test in tests:
+            with self.subTest(test=test):
+                self.assertEqual(corona_history.float_formatter(test[0]), test[1])
 
 
 if __name__ == "__main__":

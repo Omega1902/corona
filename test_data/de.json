@@ -1,0 +1,1 @@
+{"objectIdFieldName":"ObjectId","uniqueIdField":{"name":"ObjectId","isSystemMaintained":true},"globalIdFieldName":"","fields":[{"name":"Inz7T","type":"esriFieldTypeDouble","alias":"Inz7T","sqlType":"sqlTypeFloat","domain":null,"defaultValue":null}],"features":[{"attributes":{"Inz7T":702.1}}]}

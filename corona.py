@@ -55,7 +55,8 @@ class Connector:
     @classmethod
     def parse_answer(cls, response_json) -> CasesResult:
         results = cls.parse_answer_all(response_json)
-        assert len(results) == 1
+        if len(results) != 1:
+            raise RuntimeError(f"length of results does not match, expected 1 and got {len(results)}")
         return results[0]
 
     @staticmethod
@@ -77,12 +78,13 @@ class Connector:
         url = self.url.format(landkreis.id)
         logging.info("Url: '%s'", url)
         async with self.get(url) as response:
-            response.raise_for_status()
             response_json = await response.json()
         logging.debug("%i loaded", landkreis.id)
         response = self.parse_answer(response_json)
-        assert response.county == landkreis.lk_name, "Wrong lk_name was returned"
-        assert response.region_id == landkreis.id, "Wrong id was returned"
+        if response.county != landkreis.lk_name:
+            raise RuntimeError(f"Wrong lk_name was returned: requested {landkreis.lk_name}, returned {response.county}")
+        if response.region_id != landkreis.id:
+            raise RuntimeError(f"Wrong id was returned: requested {landkreis.id}, returned {response.region_id}")
         return response
 
     async def get_cases(self, landkreise: Iterable[Landkreise]):
@@ -91,36 +93,30 @@ class Connector:
 
     async def get_all_cases(self):
         async with self.get(self.url_all) as response:
-            response.raise_for_status()
             response_json = await response.json()
+        logging.debug("Loaded: %s", str(response_json))
         return self.parse_answer_all(response_json)
 
+    async def _fetch_binary(self, url):
+        async with self.get(url) as response:
+            return await response.read()
+
     async def get_excel(self):
-        async with self.get(self.url_excel) as response:
-            response.raise_for_status()
-            result = await response.read()
-        return result
+        return await self._fetch_binary(self.url_excel)
 
     async def get_excel_fixed(self):
-        async with self.get(self.url_excel_fixed) as response:
-            response.raise_for_status()
-            result = await response.read()
-        return result
+        return await self._fetch_binary(self.url_excel_fixed)
 
     async def get_excel_fixed_archive(self):
-        async with self.get(self.url_excel_fixed_archive) as response:
-            response.raise_for_status()
-            result = await response.read()
-        return result
+        return await self._fetch_binary(self.url_excel_fixed_archive)
 
     async def get_germany(self):
         async with self.get(self.url_germany) as response:
-            response.raise_for_status()
             result = await response.json()
         return result["features"][0]["attributes"]["Inz7T"]
 
     async def __aenter__(self) -> "Connector":
-        self._session = aiohttp.ClientSession()
+        self._session = aiohttp.ClientSession(raise_for_status=True)
         await self._session.__aenter__()
         return self
 
@@ -137,20 +133,21 @@ async def print_result_async(tasks, column1_width=20):
         if date_string is None:
             date_string = city.updated[:10]
             print("Datum: " + date_string)
-            print(print_format.format("Kreis", "Inzidenz"))
+            print(print_format.format("Landkreis", "Inzidenz"))
         else:
             assert city.updated.startswith(date_string)
         print(print_format.format(city.city_name, f"{city.cases7_per_100k:3.2f}"))
 
 
 def print_result(result: Iterable[CasesResult], print_id: bool = False):
+    logging.debug("%s", str(result))
     to_print = []
     date_string = None
     for city in result:
         if date_string is None:
             date_string = city.updated[:10]
-        else:
-            assert city.updated.startswith(date_string)
+        elif not city.updated.startswith(date_string):
+            raise RuntimeError("Different updated dates!")
         temp = []
         if print_id:
             temp.append(city.county + f" ({city.region_id})")
@@ -182,21 +179,24 @@ def print_table(headers: List[str], table: List[List[str]]):
         print(print_format.format(*row))
 
 
-async def main(landkreise: Optional[Iterable[Landkreise]] = None, keep_order: bool = False):
+async def main(landkreise: Optional[Iterable[Landkreise]] = None, keep_order: bool = False, con: Connector = None):
+    if con is None:
+        con = Connector()
     if landkreise is None:
-        async with Connector() as con:
+        async with con:
             result = await con.get_all_cases()
         sort_by_name = lambda city: city.city_name
         result.sort(key=sort_by_name)
         print_result(result, True)
     elif keep_order:
-        async with Connector() as con:
+        async with con:
             result = await con.get_cases(landkreise)
         print_result(result)
     else:
-        async with Connector() as con:
+        async with con:
             tasks = [con.get_case(landkreis) for landkreis in landkreise]
             await print_result_async(tasks)
+    await asyncio.sleep(0.15)  # prevents "RuntimeError: Event loop is closed"
 
 
 if __name__ == "__main__":
