@@ -1,21 +1,15 @@
-import unittest
-from typing import Iterable
 import asyncio
+import unittest
+
+
 from corona import Connector
 from landkreise import Landkreise
 
 
-async def test_be(landkreise: Iterable[Landkreise]):
-    """tests consistency to BE, should run without an exception"""
-    async with Connector() as con:
-        tasks = [con.get_case(landkreis) for landkreis in landkreise]
-        await asyncio.gather(*tasks)
-
-
-class TestLandkreise(unittest.TestCase):
+class TestLandkreise(unittest.IsolatedAsyncioTestCase):
     @classmethod
     def setUpClass(cls):
-        cls.landkreise_dict = [lk for lk in Landkreise]
+        cls.landkreise_list = [lk for lk in Landkreise]
 
     def test_uniqueness(self):
         for landkreis in Landkreise:
@@ -36,8 +30,8 @@ class TestLandkreise(unittest.TestCase):
 
     def test_find_by_ids(self):
         tests = [
-            {"test": [lk.id for lk in Landkreise] + [-1], "expect": self.landkreise_dict},
-            {"test": (lk.id for lk in Landkreise), "expect": self.landkreise_dict},
+            {"test": [lk.id for lk in Landkreise] + [-1], "expect": self.landkreise_list},
+            {"test": (lk.id for lk in Landkreise), "expect": self.landkreise_list},
             {"test": tuple((-1, -2)), "expect": []},
         ]
         for test in tests:
@@ -53,8 +47,8 @@ class TestLandkreise(unittest.TestCase):
 
     def test_find_by_lk_names(self):
         tests = [
-            {"test": [lk.lk_name for lk in Landkreise] + ["DOES NOT EXIST"], "expect": self.landkreise_dict},
-            {"test": (lk.lk_name for lk in Landkreise), "expect": self.landkreise_dict},
+            {"test": [lk.lk_name for lk in Landkreise] + ["DOES NOT EXIST"], "expect": self.landkreise_list},
+            {"test": (lk.lk_name for lk in Landkreise), "expect": self.landkreise_list},
             {"test": tuple(("DOES NOT EXIST", "DOES NOT EXIST2")), "expect": []},
         ]
         for test in tests:
@@ -73,9 +67,11 @@ class TestLandkreise(unittest.TestCase):
         for name, landkreis in tests.items():
             self.assertEqual(name, landkreis.name)
 
-    def test_consistency_be(self):
-        """This testcase should check whether the Landkreis values are matching the ones of the BE"""
-        asyncio.run(test_be(self.landkreise_dict))
+    async def test_consistency_be(self):
+        """tests consistency to BE, should run without an exception"""
+        async with Connector() as con:
+            tasks = [con.get_case(landkreis) for landkreis in self.landkreise_list]
+            await asyncio.gather(*tasks)
 
 
 if __name__ == "__main__":

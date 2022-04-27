@@ -1,11 +1,13 @@
-from typing import Collection
-from datetime import datetime
 import argparse
 import asyncio
+from datetime import datetime
 import re
-import pandas as pd  # uses xlrd in background
+from typing import Collection
+
+import pandas as pd  # uses openpyxl in background
 import matplotlib.pyplot as plt
 import numpy as np
+
 import corona
 from landkreise import Landkreise, DEUTSCHLAND
 
@@ -42,7 +44,7 @@ def read_excel(path, kreise: Collection[Landkreise], fixed_values: bool = False,
     else:
         sheet_names = ["LK_7-Tage-Inzidenz-aktualisiert", "BL_7-Tage-Inzidenz-aktualisiert", "BL_7-Tage-Inzidenz Hosp(aktual)"]
         skip_rows = 2
-    dfs = pd.read_excel(path, sheet_name=sheet_names, index_col=0, usecols=my_use_cols, skiprows=skip_rows, engine="xlrd")
+    dfs = pd.read_excel(path, sheet_name=sheet_names, index_col=0, usecols=my_use_cols, skiprows=skip_rows, engine="openpyxl")
 
     for df in dfs.values():
         df.index.name = None
@@ -74,23 +76,16 @@ def read_excel(path, kreise: Collection[Landkreise], fixed_values: bool = False,
     return df_inzidenz, df_hosp
 
 
-def print_result(df1, df2=None):
-    # format ouput
-    pd.set_option("display.max_rows", None)
-    pd.set_option("display.max_columns", None)
-    pd.set_option("display.width", None)
-    # pd.set_option('display.max_colwidth', -1)
-    pd.set_option("display.precision", 1)
-
-    # show data
-    print(df1)
-    if df2 is not None:
-        print()
-        print(df2)
+def df_to_string(df: pd.DataFrame):
+    return df.to_string(header=True, index=True, justify="center", float_format=float_formatter)
 
 
 def date_formatter(date_obj):
     return date_obj.strftime("%d.%m.")
+
+
+def float_formatter(number: float):
+    return f"{number:,.1f}".replace(".", "X").replace(",", ".").replace("X", ",")
 
 
 def set_graph_title(date_obj):
@@ -140,9 +135,11 @@ async def get_history(landkreise: Collection[Landkreise], fixed_values: bool = F
     if isinstance(method, int):
         last_date = inzidenzen_result.columns[-1]
         inzidenzen_result.rename(columns=date_formatter, inplace=True)
+        print(df_to_string(inzidenzen_result))
         if result_hosp is not None:
             result_hosp.rename(columns=date_formatter, inplace=True)
-        print_result(inzidenzen_result, result_hosp)
+            print()
+            print(df_to_string(result_hosp))
         title = set_graph_title(last_date)
         show_graph(inzidenzen_result, result_hosp, title, output_file, fixed_values)
     else:
