@@ -30,9 +30,10 @@ def create_answer(value: str = None, json_object=None):
 
 @lru_cache(maxsize=32)
 def get_city(url: str, *args, **kwargs):
-    city_id = url.removeprefix(
-        "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/RKI_Landkreisdaten/FeatureServer/0/query?where=OBJECTID="
-    ).removesuffix("&outFields=OBJECTID,GEN,county,cases7_per_100k,last_update&returnGeometry=false&outSR=&f=json")
+    prefix = "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/RKI_Landkreisdaten/FeatureServer/0/query?where=OBJECTID="
+    suffix = "&outFields=OBJECTID,GEN,county,cases7_per_100k,last_update&returnGeometry=false&outSR=&f=json"
+    url = url if not url.startswith(prefix) else url[len(prefix) :]
+    city_id = url if not url.endswith(suffix) else url[: -len(suffix)]
     with open(get_testdata_file(city_id + ".json"), encoding="utf-8") as f:
         result = f.read()
     return create_answer(json_object=json.loads(result))
