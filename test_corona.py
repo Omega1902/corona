@@ -1,9 +1,9 @@
-from functools import lru_cache
-from io import StringIO
 import json
 import os
 import sys
 import unittest
+from functools import lru_cache
+from io import StringIO
 from unittest.mock import AsyncMock, MagicMock, NonCallableMock
 
 from corona import CasesResult, Connector, main

@@ -1,6 +1,6 @@
-from enum import Enum
-from typing import Iterable, Optional, List
 import logging
+from enum import Enum
+from typing import Iterable, List, Optional
 
 LOG = logging.getLogger(__name__)
 

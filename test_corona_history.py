@@ -1,9 +1,11 @@
 import os
-from datetime import datetime
 import unittest
+from datetime import datetime
+
 import pandas as pd
-from landkreise import DEUTSCHLAND, Landkreise
+
 import corona_history
+from landkreise import DEUTSCHLAND, Landkreise
 
 
 def get_testdata_file(filename):

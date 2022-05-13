@@ -1,15 +1,15 @@
 import argparse
 import asyncio
-from datetime import datetime
 import re
+from datetime import datetime
 from typing import Collection
 
-import pandas as pd  # uses openpyxl in background
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd  # uses openpyxl in background
 
 import corona
-from landkreise import Landkreise, DEUTSCHLAND
+from landkreise import DEUTSCHLAND, Landkreise
 
 
 def find_landkreis(lk_name: str):

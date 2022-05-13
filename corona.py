@@ -1,10 +1,12 @@
-import os
-import logging
-from collections import namedtuple
-from typing import Iterable, List, Optional
 import argparse
 import asyncio
+import logging
+import os
+from collections import namedtuple
+from typing import Iterable, List, Optional
+
 import aiohttp  # pip install aiohttp OPTIONAL: pip install aiodns
+
 from landkreise import Landkreise
 
 CasesResult = namedtuple("CasesResult", ("city_name", "county", "cases7_per_100k", "updated", "region_id"))

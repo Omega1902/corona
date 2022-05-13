@@ -1,7 +1,6 @@
 import asyncio
 import unittest
 
-
 from corona import Connector
 from landkreise import Landkreise
 
