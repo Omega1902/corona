@@ -182,20 +182,32 @@ def print_table(headers: List[str], table: List[List[str]]):
 
 
 async def main(landkreise: Optional[Iterable[Landkreise]] = None, keep_order: bool = False, con: Connector = None):
+    con_needs_opening = False
     if con is None:
         con = Connector()
+        con_needs_opening = True
     if landkreise is None:
-        async with con:
+        if con_needs_opening:
+            async with con:
+                result = await con.get_all_cases()
+        else:
             result = await con.get_all_cases()
         sort_by_name = lambda city: city.city_name
         result.sort(key=sort_by_name)
         print_result(result, True)
     elif keep_order:
-        async with con:
+        if con_needs_opening:
+            async with con:
+                result = await con.get_cases(landkreise)
+        else:
             result = await con.get_cases(landkreise)
         print_result(result)
     else:
-        async with con:
+        if con_needs_opening:
+            async with con:
+                tasks = [con.get_case(landkreis) for landkreis in landkreise]
+                await print_result_async(tasks)
+        else:
             tasks = [con.get_case(landkreis) for landkreis in landkreise]
             await print_result_async(tasks)
     await asyncio.sleep(0.15)  # prevents "RuntimeError: Event loop is closed"
