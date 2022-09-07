@@ -450,17 +450,13 @@ class Landkreise(Enum):
         self._lk_name = lk_name
         if name is None:
             if lk_name.startswith("LK ") or lk_name.startswith("SK "):
-                self._name = lk_name[3:]
+                self._name_ = lk_name[3:]
             else:
-                self._name = lk_name
+                self._name_ = lk_name
         else:
-            self._name = name
+            self._name_ = name
         self._value_ = lk_id
         self._land = land
-
-    @property
-    def name(self):
-        return self._name
 
     @property
     def land(self):
@@ -502,11 +498,10 @@ class Landkreise(Enum):
 
     @staticmethod
     def find_by_lk_name(lk_name) -> Optional["Landkreise"]:
-        result = [lk for lk in Landkreise if lk.lk_name == lk_name]
-        return None if len(result) != 1 else result[0]
+        return result[0] if len(result := tuple(lk for lk in Landkreise if lk.lk_name == lk_name)) == 1 else None
 
     @classmethod
-    def find_by_lk_names(cls, lk_names: Iterable[str]) -> List["Landkreise"]:
+    def find_by_lk_names(cls, lk_names: Iterable[str]) -> Iterable["Landkreise"]:
         """Will return a list of all Landkreise of the given lk_names.
         If an lk_name does not exist, the None paramter returned by find_by_lk_name will not be contained in this list.
         If lk_names is None or does not contain a valid lk_name, the result will be an empty list.
@@ -517,12 +512,7 @@ class Landkreise(Enum):
         Returns:
             list[Landkreise]: List of Landkreise
         """
-        result = []
-        for lk_name in lk_names:
-            landkreis = cls.find_by_lk_name(lk_name)
-            if landkreis is not None:
-                result.append(landkreis)
-        return result
+        return (landkreis for lk_name in lk_names if (landkreis := cls.find_by_lk_name(lk_name)) is not None)
 
     def __str__(self):
         return self.name

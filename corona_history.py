@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import contextlib
 import re
 from datetime import datetime
 from typing import Collection
@@ -13,8 +14,7 @@ from landkreise import DEUTSCHLAND, Landkreise
 
 
 def find_landkreis(lk_name: str):
-    res = Landkreise.find_by_lk_name(lk_name)
-    return res if res is not None else lk_name
+    return result if (result := Landkreise.find_by_lk_name(lk_name)) is not None else lk_name
 
 
 def format_to_datetime(excel_date):
@@ -26,53 +26,65 @@ def format_to_datetime(excel_date):
     return datetime.fromordinal(datetime(1900, 1, 1).toordinal() + int(excel_date) - 2)
 
 
-def read_excel(path, kreise: Collection[Landkreise], fixed_values: bool = False, days: int = 8, archive: bool = False):
-    def my_use_cols(index):
-        if index in ("Unnamed: 0", "LK", "MeldeLandkreisBundesland", "MeldeLandkreis"):
-            return True
-        if isinstance(index, datetime):
-            return True
-        if isinstance(index, str):
-            return bool(re.match(r"\d{1,2}.\d{1,2}.\d{4}", index))
-        return False
-
+def _get_excel_param(fixed_values: bool, archive: bool) -> tuple[list[str], int]:
     if fixed_values:
         sheet_names = ["LK_7-Tage-Inzidenz (fixiert)", "BL_7-Tage-Inzidenz (fixiert)"]
         if not archive:
             sheet_names.append("BL_7-Tage-Inz Hospital(fixiert)")
-        skip_rows = 4
-    else:
-        sheet_names = ["LK_7-Tage-Inzidenz-aktualisiert", "BL_7-Tage-Inzidenz-aktualisiert", "BL_7-Tage-Inzidenz Hosp(aktual)"]
-        skip_rows = 2
-    dfs = pd.read_excel(path, sheet_name=sheet_names, index_col=0, usecols=my_use_cols, skiprows=skip_rows, engine="openpyxl")
+        return sheet_names, 4
+
+    sheet_names = ["LK_7-Tage-Inzidenz-aktualisiert", "BL_7-Tage-Inzidenz-aktualisiert", "BL_7-Tage-Inzidenz Hosp(aktual)"]
+    return sheet_names, 2
+
+
+def _get_df_inzidenz(df: pd.DataFrame, kreise: Collection[Landkreise], days: int):
+    sort_by_name = lambda landkreis: landkreis.name
+    kreise_sorted = list(sorted(kreise, key=sort_by_name))
+    df = df.loc[[x.lk_name for x in kreise_sorted], df.columns[-days:]]
+    df.rename(index=find_landkreis, columns=format_to_datetime, inplace=True)
+    return df
+
+
+def _get_df_hosp(df: pd.DataFrame, kreise: Collection[Landkreise], days: int):
+    laender = list(sorted({x.land for x in kreise if x.land})) + ["Gesamt"]
+    df = df.loc[laender, df.columns[-days:]]
+    df.rename(index={"Gesamt": DEUTSCHLAND}, columns=format_to_datetime, inplace=True)
+    return df
+
+
+def _get_series_ger(df: pd.DataFrame, days: int):
+    ger = df.loc["Gesamt", df.columns[-days:]]
+    ger.rename(format_to_datetime, inplace=True)
+    return ger
+
+
+def _use_cols(index):
+    if index in ("Unnamed: 0", "LK", "MeldeLandkreisBundesland", "MeldeLandkreis"):
+        return True
+    if isinstance(index, datetime):
+        return True
+    if isinstance(index, str):
+        return bool(re.match(r"\d{1,2}.\d{1,2}.\d{4}", index))
+    return False
+
+
+def read_excel(path, kreise: Collection[Landkreise], fixed_values: bool = False, days: int = 8, archive: bool = False):
+    sheet_names, skip_rows = _get_excel_param(fixed_values, archive)
+    dfs = pd.read_excel(path, sheet_name=sheet_names, index_col=0, usecols=_use_cols, skiprows=skip_rows, engine="openpyxl")
 
     for df in dfs.values():
         df.index.name = None
 
     # get results
-    df_inzidenz = dfs[sheet_names[0]]
-    sort_by_name = lambda landkreis: landkreis.name
-    kreise_sorted = list(sorted(kreise, key=sort_by_name))
-    df_inzidenz = df_inzidenz.loc[[x.lk_name for x in kreise_sorted], df_inzidenz.columns[-days:]]
-    df_inzidenz.rename(index=find_landkreis, columns=format_to_datetime, inplace=True)
+    df_inzidenz = _get_df_inzidenz(dfs[sheet_names[0]], kreise, days)
+    df_inzidenz.loc[DEUTSCHLAND] = _get_series_ger(dfs[sheet_names[1]], days)
+    if len(sheet_names) == 2:  # df_hops not awailable
+        return df_inzidenz, None
 
-    # get germany results
-    tmp_ger = dfs[sheet_names[1]].loc["Gesamt", dfs[sheet_names[1]].columns[-days:]]
-    tmp_ger.rename(format_to_datetime, inplace=True)
-    df_inzidenz.loc[DEUTSCHLAND] = tmp_ger
-
-    # get hositalisierung results if available
-    df_hosp = None
-    if len(sheet_names) > 2:
-        df_hosp = dfs[sheet_names[2]]
-
-        # get results hosp
-        laender = list(sorted({x.land for x in kreise if x.land})) + ["Gesamt"]
-        df_hosp = df_hosp.loc[laender, df_hosp.columns[-days:]]
-        df_hosp.rename(index={"Gesamt": DEUTSCHLAND}, columns=format_to_datetime, inplace=True)
-
-        pd.testing.assert_index_equal(df_inzidenz.columns, df_hosp.columns)
-
+    # get hositalisierung results
+    df_hosp = _get_df_hosp(dfs[sheet_names[2]], kreise, days)
+    # make sure that df_inzidenz and df_hosp match
+    pd.testing.assert_index_equal(df_inzidenz.columns, df_hosp.columns)
     return df_inzidenz, df_hosp
 
 
@@ -88,8 +100,22 @@ def float_formatter(number: float):
     return f"{number:,.1f}".replace(".", "X").replace(",", ".").replace("X", ",")
 
 
-def set_graph_title(date_obj):
+def set_graph_title(date_obj: datetime):
     return "7-Tages Inzidenzwerte, Stand: " + date_obj.strftime("%d.%m.%Y")
+
+
+async def get_input(input_file: str, fixed_values: bool, days: int) -> list:
+    if input_file:
+        with open(input_file, "br") as excel_file:
+            return [excel_file.read()]
+    async with corona.Connector() as con:
+        if not fixed_values:
+            return [await con.get_excel()]
+
+        binary_excels = [con.get_excel_fixed()]
+        if days <= 0:
+            binary_excels.append(con.get_excel_fixed_archive())
+        return await asyncio.gather(*binary_excels)
 
 
 async def get_history(landkreise: Collection[Landkreise], fixed_values: bool = False, output_file: str = None, method=8, input_file: str = None):
@@ -105,43 +131,17 @@ async def get_history(landkreise: Collection[Landkreise], fixed_values: bool = F
         input_file (str, optional): Will save plot as imp with given name. If empty or None the plot will just be displayed. Defaults to None.
     """
     days = 0
-    try:
+    with contextlib.suppress(ValueError):
         method = 8 if method is None else int(method)
         days = method
-    except ValueError:
-        pass
-
-    if input_file:
-        with open(input_file, "br") as excel_file:
-            binary_excels = [excel_file.read()]
-    else:
-        # get data online
-        async with corona.Connector() as con:
-            if fixed_values:
-                binary_excels = [con.get_excel_fixed()]
-                if days <= 0:
-                    binary_excels.append(con.get_excel_fixed_archive())
-                binary_excels = await asyncio.gather(*binary_excels)
-
-            else:
-                binary_excels = [await con.get_excel()]
-    # read data
+    binary_excels = await get_input(input_file, fixed_values, days)
     inzidenzen_result, result_hosp = read_excel(binary_excels[0], landkreise, fixed_values, days, False)
     if len(binary_excels) == 2:
         inzidenzen_result2, _ = read_excel(binary_excels[1], landkreise, fixed_values, days, True)
         inzidenzen_result = inzidenzen_result.join(inzidenzen_result2)
 
-    # show data
     if isinstance(method, int):
-        last_date = inzidenzen_result.columns[-1]
-        inzidenzen_result.rename(columns=date_formatter, inplace=True)
-        print(df_to_string(inzidenzen_result))
-        if result_hosp is not None:
-            result_hosp.rename(columns=date_formatter, inplace=True)
-            print()
-            print(df_to_string(result_hosp))
-        title = set_graph_title(last_date)
-        show_graph(inzidenzen_result, result_hosp, title, output_file, fixed_values)
+        prepare_and_show_graph(inzidenzen_result, result_hosp, output_file, fixed_values)
     else:
         show_boxplot(inzidenzen_result.T, method, output_file)
 
@@ -157,9 +157,7 @@ def dataframe_max(df: pd.DataFrame, default=0):
         number: Max value. If there are no values or df is None returns default
     """
     max_val = default if df is None else df.max().max()
-    if pd.isna(max_val):
-        max_val = default
-    return max_val
+    return default if pd.isna(max_val) else max_val
 
 
 def get_lines_inz(max_val: float):
@@ -239,7 +237,7 @@ def get_colors(df1, df2):
     for i, bundesland in enumerate(bundeslaender):
         color_name = color_indexes[i % colors_count]
         color_df = all_colors.loc[color_name]
-        lks = [lk for lk in all_lks if lk.land == bundesland]
+        lks = tuple(lk for lk in all_lks if lk.land == bundesland)
         color_variations = max(len(lks) + 1, 7)
         colors = _get_colors(color_df.loc["min"].values, color_df.loc["max"].values, color_variations)
         result_bundesland[bundesland] = colors.pop(len(colors) // 2)
@@ -305,37 +303,26 @@ def add_bg_colors(ax, max_val, hgrid_lines, column_count: int):
         ax.fill_between(bg_color[0], bg_color[1], bg_color[2], alpha=0.2, linewidth=0, color=bg_color[3])
 
 
+def fill_ax_complete(ax, df, label, get_lines, color=None):
+    max_val = dataframe_max(df)
+    hgrid_lines = get_lines(max_val)
+    add_bg_colors(ax, max_val, hgrid_lines, len(df.columns))
+    fill_ax(ax, df, hgrid_lines, color)
+    ax.set_ylabel(label)
+
+
 def show_graph(df1: pd.DataFrame, df2: pd.DataFrame = None, title: str = None, output_file: str = None, fixed_values: bool = False):
+    label1 = "Inzidenz fix" if fixed_values else "Inzidenz akt"
     if df2 is None:
-        # calc horizontal grid lines
-        max_val = dataframe_max(df1)
-        hgrid_lines = get_lines_inz(max_val)
-
-        # plot
         fig, ax1 = plt.subplots(1, 1)
-        add_bg_colors(ax1, max_val, hgrid_lines, len(df1.columns))
-        fill_ax(ax1, df1, hgrid_lines)
-        label = "Inzidenz fix" if fixed_values else "Inzidenz akt"
-        ax1.set_ylabel(label)
-
+        fill_ax_complete(ax1, df1, label1, get_lines_inz)
     else:
-        # colors and lines
-        colors_ax1, colors_ax2 = get_colors(df1, df2)
-        max_val1 = dataframe_max(df1)
-        max_val2 = dataframe_max(df2)
-        hgrid_lines1 = get_lines_inz(max_val1)
-        hgrid_lines2 = get_lines_hosp(max_val2)
-
-        # plot
         fig, (ax1, ax2) = plt.subplots(2, 1)
-        add_bg_colors(ax1, max_val1, hgrid_lines1, len(df1.columns))
-        add_bg_colors(ax2, max_val2, hgrid_lines2, len(df2.columns))
-        fill_ax(ax1, df1, hgrid_lines1, colors_ax1)
-        fill_ax(ax2, df2, hgrid_lines2, colors_ax2)
-        label1 = "Inzidenz fix" if fixed_values else "Inzidenz akt"
-        ax1.set_ylabel(label1)
+        colors_ax1, colors_ax2 = get_colors(df1, df2)
         label2 = "Hospitalierung fix" if fixed_values else "Hospitalierung akt"
-        ax2.set_ylabel(label2)
+
+        fill_ax_complete(ax1, df1, label1, get_lines_inz, colors_ax1)
+        fill_ax_complete(ax2, df2, label2, get_lines_hosp, colors_ax2)
 
     if title:
         fig.suptitle(title)
@@ -343,7 +330,19 @@ def show_graph(df1: pd.DataFrame, df2: pd.DataFrame = None, title: str = None, o
     save_or_show(output_file, fig)
 
 
-def _filter_by_min(df: pd.DataFrame, column, mininmum: int):
+def prepare_and_show_graph(inzidenzen_result: pd.DataFrame, result_hosp: pd.DataFrame, output_file: str, fixed_values: bool):
+    last_date = inzidenzen_result.columns[-1]
+    inzidenzen_result.rename(columns=date_formatter, inplace=True)
+    print(df_to_string(inzidenzen_result))
+    if result_hosp is not None:
+        result_hosp.rename(columns=date_formatter, inplace=True)
+        print()
+        print(df_to_string(result_hosp))
+    title = set_graph_title(last_date)
+    show_graph(inzidenzen_result, result_hosp, title, output_file, fixed_values)
+
+
+def _filter_by_min(df: pd.DataFrame, column: str, mininmum: int):
     counts = df[column].value_counts()
     return df[df[column].isin(counts[counts >= mininmum].index)]
 

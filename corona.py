@@ -35,17 +35,16 @@ class Connector:
 
         self.url = (
             "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/"
-            "RKI_Landkreisdaten/FeatureServer/0/query?where=OBJECTID={}&outFields=" + fieldstr + "&returnGeometry=false&outSR=&f=json"
+            f"RKI_Landkreisdaten/FeatureServer/0/query?where=OBJECTID={{}}&outFields={fieldstr}&returnGeometry=false&outSR=&f=json"
         )
-
         self.url_all = (
             "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/"
-            "RKI_Landkreisdaten/FeatureServer/0/query?where=1=1&outFields=" + fieldstr + "&returnGeometry=false&outSR=&f=json"
+            f"RKI_Landkreisdaten/FeatureServer/0/query?where=1=1&outFields={fieldstr}&returnGeometry=false&outSR=&f=json"
         )
         excel_urls = "https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/"
-        self.url_excel_fixed_archive = excel_urls + "Fallzahlen_Kum_Tab_Archiv.xlsx?__blob=publicationFile"
-        self.url_excel_fixed = excel_urls + "Fallzahlen_Kum_Tab_aktuell.xlsx?__blob=publicationFile"
-        self.url_excel = excel_urls + "Fallzahlen_Inzidenz_aktualisiert.xlsx?__blob=publicationFile"
+        self.url_excel = f"{excel_urls}Fallzahlen_Inzidenz_aktualisiert.xlsx?__blob=publicationFile"
+        self.url_excel_fixed = f"{excel_urls}Fallzahlen_Kum_Tab_aktuell.xlsx?__blob=publicationFile"
+        self.url_excel_fixed_archive = f"{excel_urls}Fallzahlen_Kum_Tab_Archiv.xlsx?__blob=publicationFile"
 
         self.url_germany = (
             "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/"
@@ -90,8 +89,8 @@ class Connector:
         return response
 
     async def get_cases(self, landkreise: Iterable[Landkreise]):
-        tasks = [self.get_case(landkreis) for landkreis in landkreise]
-        return await asyncio.gather(*tasks)
+        coros = tuple(map(self.get_case, landkreise))
+        return await asyncio.gather(*coros)
 
     async def get_all_cases(self):
         async with self.get(self.url_all) as response:
@@ -127,14 +126,14 @@ class Connector:
         self._session = None
 
 
-async def print_result_async(tasks, column1_width=20):
+async def print_result_async(tasks: Iterable, column1_width: int = 20):
     date_string = None
     print_format = "{:" + str(column1_width) + "} {:>8}"
     for coro in asyncio.as_completed(tasks):
         city = await coro
         if date_string is None:
             date_string = city.updated[:10]
-            print("Datum: " + date_string)
+            print(f"Datum: {date_string}")
             print(print_format.format("Landkreis", "Inzidenz"))
         else:
             assert city.updated.startswith(date_string)
@@ -152,7 +151,7 @@ def print_result(result: Iterable[CasesResult], print_id: bool = False):
             raise RuntimeError("Different updated dates!")
         temp = []
         if print_id:
-            temp.append(city.county + f" ({city.region_id})")
+            temp.append(f"{city.county} ({city.region_id})")
         else:
             temp.append(city.city_name)
         temp.append(f"{city.cases7_per_100k:3.2f}")
@@ -160,7 +159,7 @@ def print_result(result: Iterable[CasesResult], print_id: bool = False):
     if date_string is None:
         print("Keine Daten verfügbar")
     else:
-        print("Datum: " + date_string)
+        print(f"Datum: {date_string}")
         header = ["Landkreis", "Inzidenz"]
         print_table(header, to_print)
 
@@ -181,35 +180,33 @@ def print_table(headers: List[str], table: List[List[str]]):
         print(print_format.format(*row))
 
 
+async def handle_context_manager(con_needs_opening: bool, con: Connector, coro_func, *args, **kwargs):
+    if con_needs_opening:
+        async with con:
+            return await coro_func(*args, **kwargs)
+    return await coro_func(*args, **kwargs)
+
+
+async def get_and_print_landkreise_tasks(con, landkreise):
+    tasks = tuple(map(con.get_case, landkreise))
+    await print_result_async(tasks)
+
+
 async def main(landkreise: Optional[Iterable[Landkreise]] = None, keep_order: bool = False, con: Connector = None):
     con_needs_opening = False
     if con is None:
         con = Connector()
         con_needs_opening = True
     if landkreise is None:
-        if con_needs_opening:
-            async with con:
-                result = await con.get_all_cases()
-        else:
-            result = await con.get_all_cases()
+        result = await handle_context_manager(con_needs_opening, con, con.get_all_cases)
         sort_by_name = lambda city: city.city_name
         result.sort(key=sort_by_name)
         print_result(result, True)
     elif keep_order:
-        if con_needs_opening:
-            async with con:
-                result = await con.get_cases(landkreise)
-        else:
-            result = await con.get_cases(landkreise)
+        result = await handle_context_manager(con_needs_opening, con, con.get_cases, landkreise)
         print_result(result)
     else:
-        if con_needs_opening:
-            async with con:
-                tasks = [con.get_case(landkreis) for landkreis in landkreise]
-                await print_result_async(tasks)
-        else:
-            tasks = [con.get_case(landkreis) for landkreis in landkreise]
-            await print_result_async(tasks)
+        await handle_context_manager(con_needs_opening, con, get_and_print_landkreise_tasks, con, landkreise)
     await asyncio.sleep(0.15)  # prevents "RuntimeError: Event loop is closed"
 
 
@@ -244,12 +241,10 @@ if __name__ == "__main__":
     PARSER.add_argument("-o", "--force_order", action="store_true", help="Ausgabe ist in der selben Reihenfolge wie die IDs.")
 
     ARGS = PARSER.parse_args()
-    ALL = ARGS.all
-    FORCE_ORDER = ARGS.force_order
-    REGION_IDS = ARGS.region_ids
-    if REGION_IDS is not None:
-        REGIONS = Landkreise.find_by_ids(REGION_IDS)
-    if ALL:
+
+    if ARGS.region_ids is not None:
+        REGIONS = Landkreise.find_by_ids(ARGS.region_ids)
+    if ARGS.all:
         REGIONS = None
 
-    asyncio.run(main(REGIONS, FORCE_ORDER))
+    asyncio.run(main(REGIONS, ARGS.force_order))

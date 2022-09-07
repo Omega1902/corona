@@ -52,7 +52,7 @@ class TestLandkreise(unittest.IsolatedAsyncioTestCase):
         ]
         for test in tests:
             with self.subTest(test=test):
-                landkreise = Landkreise.find_by_lk_names(test["test"])
+                landkreise = list(Landkreise.find_by_lk_names(test["test"]))
                 self.assertEqual(landkreise, test["expect"])
 
     def test_name(self):
