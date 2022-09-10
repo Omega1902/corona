@@ -104,7 +104,7 @@ def set_graph_title(date_obj: datetime):
     return "7-Tages Inzidenzwerte, Stand: " + date_obj.strftime("%d.%m.%Y")
 
 
-async def get_input(input_file: str, fixed_values: bool, days: int) -> list:
+async def get_input(fixed_values: bool, days: int, input_file: str = None) -> list:
     if input_file:
         with open(input_file, "br") as excel_file:
             return [excel_file.read()]
@@ -134,7 +134,7 @@ async def get_history(landkreise: Collection[Landkreise], fixed_values: bool = F
     with contextlib.suppress(ValueError):
         method = 8 if method is None else int(method)
         days = method
-    binary_excels = await get_input(input_file, fixed_values, days)
+    binary_excels = await get_input(fixed_values, days, input_file)
     inzidenzen_result, result_hosp = read_excel(binary_excels[0], landkreise, fixed_values, days, False)
     if len(binary_excels) == 2:
         inzidenzen_result2, _ = read_excel(binary_excels[1], landkreise, fixed_values, days, True)

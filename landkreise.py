@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import Iterable, List, Optional
+from typing import Iterable, Optional
 
 LOG = logging.getLogger(__name__)
 
@@ -473,12 +473,12 @@ class Landkreise(Enum):
         return self._value_
 
     @staticmethod
-    def find_by_id(lk_id) -> Optional["Landkreise"]:
-        result = [lk for lk in Landkreise if lk.id == lk_id]
+    def find_by_id(lk_id: int) -> Optional["Landkreise"]:
+        result = tuple(lk for lk in Landkreise if lk.id == lk_id)
         return None if len(result) != 1 else result[0]
 
     @classmethod
-    def find_by_ids(cls, lk_ids: Iterable[int]) -> List["Landkreise"]:
+    def find_by_ids(cls, lk_ids: Iterable[int]) -> list["Landkreise"]:
         """Will return a list of all Landkreise of the given ids.
         If an id does not exist, the None paramter returned by find_by_id will not be contained in this list.
         If lk_ids is None or does not contain a valid lk_id, the result will be an empty list.
@@ -487,7 +487,7 @@ class Landkreise(Enum):
             lk_ids (Iterable[int]): lk_ids to convert to Landkreise
 
         Returns:
-            list[Landkreise]: List of Landkreise
+            list[Landkreise]: list of Landkreise
         """
         result = []
         for lk_id in lk_ids:
@@ -510,7 +510,7 @@ class Landkreise(Enum):
             lk_names (Iterable[str]): lk_names to convert to Landkreise
 
         Returns:
-            list[Landkreise]: List of Landkreise
+            list[Landkreise]: list of Landkreise
         """
         return (landkreis for lk_name in lk_names if (landkreis := cls.find_by_lk_name(lk_name)) is not None)
 

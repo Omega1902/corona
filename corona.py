@@ -3,7 +3,7 @@ import asyncio
 import logging
 import os
 from collections import namedtuple
-from typing import Iterable, List, Optional
+from typing import Iterable, Optional
 
 import aiohttp  # pip install aiohttp OPTIONAL: pip install aiodns
 
@@ -61,7 +61,7 @@ class Connector:
         return results[0]
 
     @staticmethod
-    def parse_answer_all(response_json) -> List[CasesResult]:
+    def parse_answer_all(response_json) -> list[CasesResult]:
         result = []
         for city in response_json["features"]:
             region_id = city["attributes"]["OBJECTID"]
@@ -164,7 +164,7 @@ def print_result(result: Iterable[CasesResult], print_id: bool = False):
         print_table(header, to_print)
 
 
-def print_table(headers: List[str], table: List[List[str]]):
+def print_table(headers: list[str], table: list[list[str]]):
     print_formats = []
     for i, header in enumerate(headers):
         size = max(len(x[i]) for x in table)
