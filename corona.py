@@ -3,7 +3,7 @@ import asyncio
 import logging
 import os
 from collections import namedtuple
-from typing import Iterable, Optional
+from typing import AsyncIterable, Iterable, Optional
 
 import aiohttp  # pip install aiohttp OPTIONAL: pip install aiodns
 
@@ -75,7 +75,7 @@ class Connector:
     def get(self, url):
         return self._session.get(url, proxy=self.proxy)
 
-    async def get_case(self, landkreis: Landkreise):
+    async def get_case(self, landkreis: Landkreise) -> CasesResult:
         url = self.url.format(landkreis.id)
         logging.info("Url: '%s'", url)
         async with self.get(url) as response:
@@ -88,9 +88,12 @@ class Connector:
             raise RuntimeError(f"Wrong id was returned: requested {landkreis.id}, returned {response.region_id}")
         return response
 
-    async def get_cases(self, landkreise: Iterable[Landkreise]):
-        coros = tuple(map(self.get_case, landkreise))
-        return await asyncio.gather(*coros)
+    async def get_cases(self, landkreise: Iterable[Landkreise], force_order: bool = False) -> AsyncIterable[CasesResult]:
+        tasks = tuple(map(asyncio.create_task, map(self.get_case, landkreise)))
+        if not force_order:
+            tasks = asyncio.as_completed(tasks)
+        for task in tasks:
+            yield await task
 
     async def get_all_cases(self):
         async with self.get(self.url_all) as response:
@@ -126,25 +129,23 @@ class Connector:
         self._session = None
 
 
-async def print_result_async(tasks: Iterable, column1_width: int = 20):
+async def print_result_async(cities: AsyncIterable[CasesResult], column1_width: int = 20):
     date_string = None
     print_format = "{:" + str(column1_width) + "} {:>8}"
-    for coro in asyncio.as_completed(tasks):
-        city = await coro
+    async for city in cities:
         if date_string is None:
             date_string = city.updated[:10]
             print(f"Datum: {date_string}")
             print(print_format.format("Landkreis", "Inzidenz"))
-        else:
-            assert city.updated.startswith(date_string)
+        elif not city.updated.startswith(date_string):
+            raise RuntimeError("Different updated dates!")
         print(print_format.format(city.city_name, f"{city.cases7_per_100k:3.2f}"))
 
 
-def print_result(result: Iterable[CasesResult], print_id: bool = False):
-    logging.debug("%s", str(result))
+async def print_result(result: AsyncIterable[CasesResult], print_id: bool = False):
     to_print = []
     date_string = None
-    for city in result:
+    async for city in result:
         if date_string is None:
             date_string = city.updated[:10]
         elif not city.updated.startswith(date_string):
@@ -187,9 +188,12 @@ async def handle_context_manager(con_needs_opening: bool, con: Connector, coro_f
     return await coro_func(*args, **kwargs)
 
 
-async def get_and_print_landkreise_tasks(con, landkreise):
-    tasks = tuple(map(con.get_case, landkreise))
-    await print_result_async(tasks)
+async def get_and_print_landkreise_tasks(con, landkreise: Iterable[Landkreise], force_order: bool):
+    async_generator = con.get_cases(landkreise, force_order)
+    if force_order:
+        await print_result(async_generator)
+    else:
+        await print_result_async(async_generator)
 
 
 async def main(landkreise: Optional[Iterable[Landkreise]] = None, keep_order: bool = False, con: Connector = None):
@@ -202,11 +206,8 @@ async def main(landkreise: Optional[Iterable[Landkreise]] = None, keep_order: bo
         sort_by_name = lambda city: city.city_name
         result.sort(key=sort_by_name)
         print_result(result, True)
-    elif keep_order:
-        result = await handle_context_manager(con_needs_opening, con, con.get_cases, landkreise)
-        print_result(result)
     else:
-        await handle_context_manager(con_needs_opening, con, get_and_print_landkreise_tasks, con, landkreise)
+        await handle_context_manager(con_needs_opening, con, get_and_print_landkreise_tasks, con, landkreise, keep_order)
     await asyncio.sleep(0.15)  # prevents "RuntimeError: Event loop is closed"
 
 

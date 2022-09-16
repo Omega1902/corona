@@ -98,7 +98,8 @@ Ostholstein           1891.44
             CasesResult("Ostholstein", "LK Ostholstein", 1891.4371646806, "27.04.2022, 00:00 Uhr", 8),
         ]
         self.con._session.get = MagicMock(side_effect=get_city)
-        result = await self.con.get_cases(self.landkreise)
+        generator = self.con.get_cases(self.landkreise, True)
+        result = [x async for x in generator]
         self.assertEqual(result, expected_result)
 
     async def test_main_ordered(self):
