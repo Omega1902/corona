@@ -1,14 +1,14 @@
 import asyncio
 import unittest
 
-from corona import Connector
-from landkreise import Landkreise
+from corona.landkreise import Landkreise
+from corona.rki_connector import Connector
 
 
 class TestLandkreise(unittest.IsolatedAsyncioTestCase):
     @classmethod
     def setUpClass(cls):
-        cls.landkreise_list = [lk for lk in Landkreise]
+        cls.landkreise_list = list(Landkreise)
 
     def test_uniqueness(self):
         for landkreis in Landkreise:

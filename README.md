@@ -3,6 +3,7 @@
 [![unittest](https://github.com/Omega1902/corona/actions/workflows/python-unittest.yml/badge.svg?branch=main)](https://github.com/Omega1902/corona/actions/workflows/python-unittest.yml)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
+[![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
 
 ## Ziel
 
@@ -22,4 +23,4 @@ Danke für das Heise Team, die in ihrer CT Zeitschrift die API erklärt haben. [
 
 ## Lizenz
 
-Dieses Projekt steht unter der GPL
+Dieses Projekt steht unter der GPLv2

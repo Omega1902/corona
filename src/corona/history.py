@@ -3,14 +3,14 @@ import asyncio
 import contextlib
 import re
 from datetime import datetime
-from typing import Collection
+from typing import Collection, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd  # uses openpyxl in background
 
-import corona
-from landkreise import DEUTSCHLAND, Landkreise
+from corona.landkreise import DEUTSCHLAND, Landkreise
+from corona.rki_connector import Connector
 
 
 def find_landkreis(lk_name: str):
@@ -33,7 +33,11 @@ def _get_excel_param(fixed_values: bool, archive: bool) -> tuple[list[str], int]
             sheet_names.append("BL_7-Tage-Inz Hospital(fixiert)")
         return sheet_names, 4
 
-    sheet_names = ["LK_7-Tage-Inzidenz-aktualisiert", "BL_7-Tage-Inzidenz-aktualisiert", "BL_7-Tage-Inzidenz Hosp(aktual)"]
+    sheet_names = [
+        "LK_7-Tage-Inzidenz-aktualisiert",
+        "BL_7-Tage-Inzidenz-aktualisiert",
+        "BL_7-Tage-Inzidenz Hosp(aktual)",
+    ]
     return sheet_names, 2
 
 
@@ -70,7 +74,9 @@ def _use_cols(index):
 
 def read_excel(path, kreise: Collection[Landkreise], fixed_values: bool = False, days: int = 8, archive: bool = False):
     sheet_names, skip_rows = _get_excel_param(fixed_values, archive)
-    dfs = pd.read_excel(path, sheet_name=sheet_names, index_col=0, usecols=_use_cols, skiprows=skip_rows, engine="openpyxl")
+    dfs = pd.read_excel(
+        path, sheet_name=sheet_names, index_col=0, usecols=_use_cols, skiprows=skip_rows, engine="openpyxl"
+    )
 
     for df in dfs.values():
         df.index.name = None
@@ -104,11 +110,11 @@ def set_graph_title(date_obj: datetime):
     return "7-Tages Inzidenzwerte, Stand: " + date_obj.strftime("%d.%m.%Y")
 
 
-async def get_input(fixed_values: bool, days: int, input_file: str = None) -> list:
+async def get_input(fixed_values: bool, days: int, input_file: Optional[str] = None) -> list:
     if input_file:
         with open(input_file, "br") as excel_file:
             return [excel_file.read()]
-    async with corona.Connector() as con:
+    async with Connector() as con:
         if not fixed_values:
             return [await con.get_excel()]
 
@@ -118,17 +124,25 @@ async def get_input(fixed_values: bool, days: int, input_file: str = None) -> li
         return await asyncio.gather(*binary_excels)
 
 
-async def get_history(landkreise: Collection[Landkreise], fixed_values: bool = False, output_file: str = None, method=8, input_file: str = None):
+async def get_history(
+    landkreise: Collection[Landkreise],
+    fixed_values: bool = False,
+    output_file: Optional[str] = None,
+    method=8,
+    input_file: Optional[str] = None,
+):
     """Corona Inzidenzzahlen Historie
 
     Args:
         landkreise (Collection[Landkreise]): The landkreise to get
         fixed_values (bool, optional): Whether to use the fixed inzident values or not. Defaults to False.
-        output_file (str, optional): Will save plot as imp with given name. If empty or None the plot will just be displayed. Defaults to None.
+        output_file (str, optional): Will save plot as imp with given name.
+                                     If empty or None the plot will just be displayed. Defaults to None.
         method (str|int, optional): If set to an int, will use these as days to plot.
                                     If set to 'w' or 'week', will plot all weeks.
                                     If set to 'm' or 'month', will plot all months. Defaults to 8.
-        input_file (str, optional): Will save plot as imp with given name. If empty or None the plot will just be displayed. Defaults to None.
+        input_file (str, optional): Will save plot as imp with given name.
+                                    If empty or None the plot will just be displayed. Defaults to None.
     """
     days = 0
     with contextlib.suppress(ValueError):
@@ -190,7 +204,7 @@ def get_lines_hosp(max_val: float):
     return result
 
 
-def save_or_show(output_file: str = None, fig=None):
+def save_or_show(output_file: Optional[str] = None, fig=None):
     if output_file:
         plt.savefig(output_file, bbox_inches="tight")
     else:
@@ -311,7 +325,13 @@ def fill_ax_complete(ax, df, label, get_lines, color=None):
     ax.set_ylabel(label)
 
 
-def show_graph(df1: pd.DataFrame, df2: pd.DataFrame = None, title: str = None, output_file: str = None, fixed_values: bool = False):
+def show_graph(
+    df1: pd.DataFrame,
+    df2: Optional[pd.DataFrame] = None,
+    title: Optional[str] = None,
+    output_file: Optional[str] = None,
+    fixed_values: bool = False,
+):
     label1 = "Inzidenz fix" if fixed_values else "Inzidenz akt"
     if df2 is None:
         fig, ax1 = plt.subplots(1, 1)
@@ -330,7 +350,9 @@ def show_graph(df1: pd.DataFrame, df2: pd.DataFrame = None, title: str = None, o
     save_or_show(output_file, fig)
 
 
-def prepare_and_show_graph(inzidenzen_result: pd.DataFrame, result_hosp: pd.DataFrame, output_file: str, fixed_values: bool):
+def prepare_and_show_graph(
+    inzidenzen_result: pd.DataFrame, result_hosp: Optional[pd.DataFrame], output_file: Optional[str], fixed_values: bool
+):
     last_date = inzidenzen_result.columns[-1]
     inzidenzen_result.rename(columns=date_formatter, inplace=True)
     print(df_to_string(inzidenzen_result))
@@ -355,7 +377,8 @@ def by_month(df: pd.DataFrame, **kwargs):
 
 
 def format_to_week(date_obj: datetime):
-    """Formats like date_obj to YYYY-WW using isocalendar(). Therefore the calendar week is between "01" and "53", e.g. datetime(2021, 1, 3) -> "2020-53"
+    """Formats like date_obj to YYYY-WW using isocalendar().
+    Therefore the calendar week is between "01" and "53", e.g. datetime(2021, 1, 3) -> "2020-53"
 
     Args:
         date_obj (datetime.datetime): Datetime object to format
@@ -373,7 +396,7 @@ def by_week(df: pd.DataFrame, **kwargs):
     return df.boxplot(by="KW", **kwargs)
 
 
-def show_boxplot(df: pd.DataFrame, method: str, output_file: str = None):
+def show_boxplot(df: pd.DataFrame, method: str, output_file: Optional[str] = None):
     if method.lower().startswith("m"):
         axes_series_2dim = by_month(df, rot=45)
     elif method.lower().startswith("w"):
@@ -397,9 +420,12 @@ if __name__ == "__main__":
     PARSER.add_argument(
         "-t",
         "--type",
-        help="If set to an int, will use these as days to plot. If set to 'w' or 'week', will plot all weeks. If set to 'm' or 'month', will plot all months.",
+        help="If set to an int, will use these as days to plot. If set to 'w' or 'week', will plot all weeks. "
+        "If set to 'm' or 'month', will plot all months.",
     )
-    PARSER.add_argument("-i", "--input", help="If set will use this as input-excel file. '-fix' parameter must be set accordingly.")
+    PARSER.add_argument(
+        "-i", "--input", help="If set will use this as input-excel file. '-fix' parameter must be set accordingly."
+    )
 
     ARGS = PARSER.parse_args()
     FIX = ARGS.fix

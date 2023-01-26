@@ -1,15 +1,12 @@
-import os
 import unittest
 from datetime import datetime
 
 import pandas as pd
 
-import corona_history
-from landkreise import DEUTSCHLAND, Landkreise
+import corona.history as history
+from corona.landkreise import DEUTSCHLAND, Landkreise
 
-
-def get_testdata_file(filename):
-    return os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_data", filename)
+from .testing_utils import get_testdata_binary
 
 
 class TestCoronaHistory(unittest.TestCase):
@@ -101,7 +98,7 @@ class TestCoronaHistory(unittest.TestCase):
     ]
 
     def test_set_graph_title(self):
-        title = corona_history.set_graph_title(self.dates[-1])
+        title = history.set_graph_title(self.dates[-1])
         self.assertEqual(self.title, title)
 
     def test_format_to_datetime(self):
@@ -115,7 +112,7 @@ class TestCoronaHistory(unittest.TestCase):
         )
         for test in tests:
             with self.subTest(test=test):
-                self.assertEqual(corona_history.format_to_datetime(test[0]), test[1])
+                self.assertEqual(history.format_to_datetime(test[0]), test[1])
 
     def test_dataframe_max(self):
         tests = (
@@ -133,7 +130,7 @@ class TestCoronaHistory(unittest.TestCase):
         )
         for test in tests:
             with self.subTest(test=test):
-                self.assertEqual(corona_history.dataframe_max(pd.DataFrame(test[0])), test[1])
+                self.assertEqual(history.dataframe_max(pd.DataFrame(test[0])), test[1])
 
     def test_get_lines_inz(self):
         tests = (
@@ -148,7 +145,7 @@ class TestCoronaHistory(unittest.TestCase):
         )
         for test in tests:
             with self.subTest(test=test):
-                self.assertEqual(corona_history.get_lines_inz(test[0]), test[1])
+                self.assertEqual(history.get_lines_inz(test[0]), test[1])
 
     def test_get_lines_hosp(self):
         tests = (
@@ -166,7 +163,7 @@ class TestCoronaHistory(unittest.TestCase):
         )
         for test in tests:
             with self.subTest(test=test):
-                self.assertEqual(corona_history.get_lines_hosp(test[0]), test[1])
+                self.assertEqual(history.get_lines_hosp(test[0]), test[1])
 
     def test_get_bg_colors(self):
         tests = (
@@ -186,11 +183,10 @@ class TestCoronaHistory(unittest.TestCase):
         )
         for test in tests:
             with self.subTest(test=test):
-                self.assertEqual(corona_history.get_bg_colors(*test[0]), test[1])
+                self.assertEqual(history.get_bg_colors(*test[0]), test[1])
 
     def test_excel_file(self):
-        with open(get_testdata_file("Fallzahlen_Inzidenz_aktualisiert.xlsx"), "br") as excel_file:
-            excel = excel_file.read()
+        excel = get_testdata_binary("Fallzahlen_Inzidenz_aktualisiert.xlsx")
         landkreise = (
             Landkreise.BERLIN_MITTE,
             Landkreise.HANNOVER,
@@ -203,7 +199,7 @@ class TestCoronaHistory(unittest.TestCase):
             Landkreise.KOELN,
             Landkreise.OSTHOLSTEIN,
         )
-        result = corona_history.read_excel(excel, landkreise, False, 8)
+        result = history.read_excel(excel, landkreise, False, 8)
         expected_result = (
             pd.DataFrame(
                 [
@@ -265,12 +261,15 @@ class TestCoronaHistory(unittest.TestCase):
                 ),
             ),
         )
-        pd.testing.assert_frame_equal(result[0], expected_result[0], atol=0.0001)  # expected result has less decimal places
-        pd.testing.assert_frame_equal(result[1], expected_result[1], atol=0.0001)  # expected result has less decimal places
+        pd.testing.assert_frame_equal(
+            result[0], expected_result[0], atol=0.0001
+        )  # expected result has less decimal places
+        pd.testing.assert_frame_equal(
+            result[1], expected_result[1], atol=0.0001
+        )  # expected result has less decimal places
 
     def test_excel_file_fixed(self):
-        with open(get_testdata_file("Fallzahlen_Kum_Tab_aktuell.xlsx"), "br") as excel_file:
-            excel = excel_file.read()
+        excel = get_testdata_binary("Fallzahlen_Kum_Tab_aktuell.xlsx")
         landkreise = (
             Landkreise.BERLIN_MITTE,
             Landkreise.HANNOVER,
@@ -306,20 +305,92 @@ class TestCoronaHistory(unittest.TestCase):
             datetime(2022, 2, 13),
             datetime(2022, 2, 14),
         )
-        result = corona_history.read_excel(excel, landkreise, True, 8)
+        result = history.read_excel(excel, landkreise, True, 8)
         expected_result1 = pd.DataFrame(
             (
                 (830.274795, 961.204766, 799.251228, 878.124704, 953.843242, 1073.730926, 1036.397480, 1092.660560),
-                (1896.519044, 1657.318444, 1650.377355, 1533.179739, 1344.702481, 1151.953783, 1148.483239, 1147.682344),
-                (1526.279934, 1405.360819, 1298.962795, 1226.843180, 1205.574371, 1210.864582, 1292.538967, 1232.619227),
-                (1484.251253, 1473.431833, 1491.262237, 1537.223131, 1481.568037, 1561.285520, 1510.650637, 1488.579021),
-                (1830.737113, 1810.247919, 1770.930819, 1767.423659, 1677.621925, 1658.240255, 1655.932914, 1621.322790),
-                (1101.711405, 1084.569554, 1095.688593, 1049.359265, 1058.161838, 1018.318616, 1045.652919, 1014.612270),
+                (
+                    1896.519044,
+                    1657.318444,
+                    1650.377355,
+                    1533.179739,
+                    1344.702481,
+                    1151.953783,
+                    1148.483239,
+                    1147.682344,
+                ),
+                (
+                    1526.279934,
+                    1405.360819,
+                    1298.962795,
+                    1226.843180,
+                    1205.574371,
+                    1210.864582,
+                    1292.538967,
+                    1232.619227,
+                ),
+                (
+                    1484.251253,
+                    1473.431833,
+                    1491.262237,
+                    1537.223131,
+                    1481.568037,
+                    1561.285520,
+                    1510.650637,
+                    1488.579021,
+                ),
+                (
+                    1830.737113,
+                    1810.247919,
+                    1770.930819,
+                    1767.423659,
+                    1677.621925,
+                    1658.240255,
+                    1655.932914,
+                    1621.322790,
+                ),
+                (
+                    1101.711405,
+                    1084.569554,
+                    1095.688593,
+                    1049.359265,
+                    1058.161838,
+                    1018.318616,
+                    1045.652919,
+                    1014.612270,
+                ),
                 (691.008513, 662.889552, 675.453343, 608.446457, 585.711978, 540.243020, 460.672342, 564.772326),
-                (1649.987670, 1829.230141, 1695.258356, 1668.390388, 1675.383421, 1758.931759, 1710.348584, 1765.556737),
+                (
+                    1649.987670,
+                    1829.230141,
+                    1695.258356,
+                    1668.390388,
+                    1675.383421,
+                    1758.931759,
+                    1710.348584,
+                    1765.556737,
+                ),
                 (586.638344, 585.149414, 652.151255, 686.892951, 668.033173, 634.284098, 633.787788, 633.787788),
-                (1226.582687, 1384.851421, 1414.728682, 1589.147287, 1563.307494, 1658.591731, 1673.934109, 1717.538760),
-                (1426.008728, 1440.997599, 1450.774518, 1465.382173, 1472.199559, 1474.323303, 1466.545061, 1459.807044),
+                (
+                    1226.582687,
+                    1384.851421,
+                    1414.728682,
+                    1589.147287,
+                    1563.307494,
+                    1658.591731,
+                    1673.934109,
+                    1717.538760,
+                ),
+                (
+                    1426.008728,
+                    1440.997599,
+                    1450.774518,
+                    1465.382173,
+                    1472.199559,
+                    1474.323303,
+                    1466.545061,
+                    1459.807044,
+                ),
             ),
             index=index_expected,
             columns=columns_expected,
@@ -336,12 +407,15 @@ class TestCoronaHistory(unittest.TestCase):
             index=("Berlin", "Hamburg", "Niedersachsen", "Nordrhein-Westfalen", "Schleswig-Holstein", DEUTSCHLAND),
             columns=columns_expected,
         )
-        pd.testing.assert_frame_equal(result[0], expected_result1, atol=0.0001)  # expected result has less decimal places
-        pd.testing.assert_frame_equal(result[1], expected_result2, atol=0.0001)  # expected result has less decimal places
+        pd.testing.assert_frame_equal(
+            result[0], expected_result1, atol=0.0001
+        )  # expected result has less decimal places
+        pd.testing.assert_frame_equal(
+            result[1], expected_result2, atol=0.0001
+        )  # expected result has less decimal places
 
     def test_excel_file_fixed_archive(self):
-        with open(get_testdata_file("Fallzahlen_Kum_Tab_Archiv.xlsx"), "br") as excel_file:
-            excel = excel_file.read()
+        excel = get_testdata_binary("Fallzahlen_Kum_Tab_Archiv.xlsx")
         landkreise = (
             Landkreise.BERLIN_MITTE,
             Landkreise.HANNOVER,
@@ -354,7 +428,7 @@ class TestCoronaHistory(unittest.TestCase):
             Landkreise.KOELN,
             Landkreise.OSTHOLSTEIN,
         )
-        result = corona_history.read_excel(excel, landkreise, True, 8, True)
+        result = history.read_excel(excel, landkreise, True, 8, True)
         expected_result = pd.DataFrame(
             (
                 (44.732918, 44.169147, 47.849909, 48.416806, 38.943952, 34.733795, 35.260065, 35.260065),
@@ -393,7 +467,9 @@ class TestCoronaHistory(unittest.TestCase):
                 datetime(2021, 9, 10),
             ),
         )
-        pd.testing.assert_frame_equal(result[0], expected_result, atol=0.0001)  # expected result has less decimal places
+        pd.testing.assert_frame_equal(
+            result[0], expected_result, atol=0.0001
+        )  # expected result has less decimal places
         self.assertIsNone(result[1])
 
     def test_format_to_week(self):
@@ -408,12 +484,11 @@ class TestCoronaHistory(unittest.TestCase):
         )
         for test in tests:
             with self.subTest(test=test):
-                self.assertEqual(corona_history.format_to_week(test[0]), test[1])
+                self.assertEqual(history.format_to_week(test[0]), test[1])
 
     def test_get_colors_integrety(self):
         """Tests if the method returns usable responses - not if the color values are correct"""
-        with open(get_testdata_file("Fallzahlen_Inzidenz_aktualisiert.xlsx"), "br") as excel_file:
-            excel = excel_file.read()
+        excel = get_testdata_binary("Fallzahlen_Inzidenz_aktualisiert.xlsx")
         landkreise = (
             Landkreise.BERLIN_MITTE,
             Landkreise.HANNOVER,
@@ -426,8 +501,8 @@ class TestCoronaHistory(unittest.TestCase):
             Landkreise.KOELN,
             Landkreise.OSTHOLSTEIN,
         )
-        df1, df2 = corona_history.read_excel(excel, landkreise, False, 8)
-        colors_ax1, colors_ax2 = corona_history.get_colors(df1, df2)
+        df1, df2 = history.read_excel(excel, landkreise, False, 8)
+        colors_ax1, colors_ax2 = history.get_colors(df1, df2)
 
         # assert keys have the correct values
         self.assertEqual(set(df1.drop(DEUTSCHLAND).index), set(colors_ax1.keys()))
@@ -448,7 +523,7 @@ class TestCoronaHistory(unittest.TestCase):
         )
         for test in tests:
             with self.subTest(test=test):
-                self.assertEqual(corona_history.date_formatter(test[0]), test[1])
+                self.assertEqual(history.date_formatter(test[0]), test[1])
 
     def test_float_formatter(self):
         tests = (
@@ -462,7 +537,7 @@ class TestCoronaHistory(unittest.TestCase):
         )
         for test in tests:
             with self.subTest(test=test):
-                self.assertEqual(corona_history.float_formatter(test[0]), test[1])
+                self.assertEqual(history.float_formatter(test[0]), test[1])
 
 
 if __name__ == "__main__":

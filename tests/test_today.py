@@ -1,20 +1,19 @@
 import json
-import os
 import sys
 import unittest
 from functools import lru_cache
 from io import StringIO
+from typing import Optional
 from unittest.mock import AsyncMock, MagicMock, NonCallableMock
 
-from corona import CasesResult, Connector, main
-from landkreise import Landkreise
+from corona.landkreise import Landkreise
+from corona.rki_connector import Connector
+from corona.today import CasesResult, main
+
+from .testing_utils import get_testdata_text
 
 
-def get_testdata_file(filename):
-    return os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_data", filename)
-
-
-def create_answer(value: str = None, json_object=None):
+def create_answer(value: Optional[str] = None, json_object=None):
     if value is None and json_object is None:
         raise ValueError("either value or json_object must not be 'None'!")
     result = NonCallableMock()
@@ -30,12 +29,14 @@ def create_answer(value: str = None, json_object=None):
 
 @lru_cache(maxsize=32)
 def get_city(url: str, *args, **kwargs):
-    prefix = "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/RKI_Landkreisdaten/FeatureServer/0/query?where=OBJECTID="
+    prefix = (
+        "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/RKI_Landkreisdaten/FeatureServer/0/"
+        "query?where=OBJECTID="
+    )
     suffix = "&outFields=OBJECTID,GEN,county,cases7_per_100k,last_update&returnGeometry=false&outSR=&f=json"
-    url = url if not url.startswith(prefix) else url[len(prefix) :]
-    city_id = url if not url.endswith(suffix) else url[: -len(suffix)]
-    with open(get_testdata_file(city_id + ".json"), encoding="utf-8") as f:
-        result = f.read()
+    url = url.removeprefix(prefix)
+    city_id = url.removesuffix(suffix)
+    result = get_testdata_text(f"{city_id}.json")
     return create_answer(json_object=json.loads(result))
 
 
@@ -77,8 +78,7 @@ Ostholstein           1891.44
             # self.assertEqual(result, 702.1)  # enable line and put the real result of the current day for testing
 
     async def test_corona_germany_mock(self):
-        with open(get_testdata_file("de.json")) as f:
-            result = f.read()
+        result = get_testdata_text("de.json")
         self.con._session.get = MagicMock(return_value=create_answer(json_object=json.loads(result)))
         result = await self.con.get_germany()
         self.assertIsInstance(result, (float, int))
@@ -93,7 +93,9 @@ Ostholstein           1891.44
             CasesResult("Lübeck", "SK Lübeck", 1317.14277772115, "27.04.2022, 00:00 Uhr", 3),
             CasesResult("Hamburg", "SK Hamburg", 909.430503358205, "27.04.2022, 00:00 Uhr", 16),
             CasesResult("Wolfsburg", "SK Wolfsburg", 1337.20930232558, "27.04.2022, 00:00 Uhr", 19),
-            CasesResult("Oberbergischer Kreis", "LK Oberbergischer Kreis", 778.803013629053, "27.04.2022, 00:00 Uhr", 87),
+            CasesResult(
+                "Oberbergischer Kreis", "LK Oberbergischer Kreis", 778.803013629053, "27.04.2022, 00:00 Uhr", 87
+            ),
             CasesResult("Köln", "SK Köln", 553.485101033874, "27.04.2022, 00:00 Uhr", 80),
             CasesResult("Ostholstein", "LK Ostholstein", 1891.4371646806, "27.04.2022, 00:00 Uhr", 8),
         ]
