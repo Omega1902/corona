@@ -11,11 +11,13 @@ Aktuell überprüft sehr viele Menschen (so auch ich) annähernd täglich die Co
 
 ## Vorraussetzungen
 
-Das skript wurde mit python versionen von 3.9 bis 3.10 entwickelt und getestet. Das aiohttp Modul wird zusätzlich benötigt.
+Das skript wurde mit python versionen von 3.9 bis 3.11 entwickelt und getestet.
 
-```pip install aiohttp```
 
-Für corona_histroy.py werden weitere Module benötigt, am mit pipenv alle benötigten Module installieren ```pipenv install```
+```
+pip install pipenv
+pipenv install
+```
 
 ## Danksagung
 
