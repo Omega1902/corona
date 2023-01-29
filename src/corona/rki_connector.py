@@ -83,7 +83,7 @@ class Connector:
         url = self.url.format(landkreis.id)
         LOG.info("Url: '%s'", url)
         async with self.get(url) as response:
-            response_json = await response.json()
+            response_json = await response.json(encoding="utf-8")
         LOG.debug("%i loaded", landkreis.id)
         response = self.parse_answer(response_json)
         if response.county != landkreis.lk_name:
