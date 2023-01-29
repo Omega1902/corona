@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest] # windows-latest leads to encoding issue
+        os: [ubuntu-latest, macos-latest] # windows-latest leads to encoding issue
         python-version: ['3.9', '3.10', '3.11']
 
     steps:
