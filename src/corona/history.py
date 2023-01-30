@@ -1,10 +1,10 @@
-import argparse
 import asyncio
 import contextlib
 import re
 from datetime import datetime
-from typing import Collection, Optional
+from typing import Callable, Collection, Optional, Union
 
+import asyncclick as click
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd  # uses openpyxl in background
@@ -125,39 +125,66 @@ async def get_input(fixed_values: bool, days: int, input_file: Optional[str] = N
 
 
 async def get_history(
-    landkreise: Collection[Landkreise],
-    fixed_values: bool = False,
-    output_file: Optional[str] = None,
-    method=8,
+    landkreise_ids: Collection[int],
+    fix: bool = False,
+    save: Optional[str] = None,
+    method: Union[str, int] = 8,
     input_file: Optional[str] = None,
 ):
     """Corona Inzidenzzahlen Historie
 
     Args:
-        landkreise (Collection[Landkreise]): The landkreise to get
-        fixed_values (bool, optional): Whether to use the fixed inzident values or not. Defaults to False.
-        output_file (str, optional): Will save plot as imp with given name.
-                                     If empty or None the plot will just be displayed. Defaults to None.
+        landkreise_ids (Collection[int]): The landkreise to get
+        fix (bool, optional): Whether to use the fixed inzident values or not. Defaults to False.
+        save (str, optional): Will save plot as imp with given name.
+                              If empty or None the plot will just be displayed. Defaults to None.
         method (str|int, optional): If set to an int, will use these as days to plot.
                                     If set to 'w' or 'week', will plot all weeks.
                                     If set to 'm' or 'month', will plot all months. Defaults to 8.
         input_file (str, optional): Will save plot as imp with given name.
                                     If empty or None the plot will just be displayed. Defaults to None.
     """
+    landkreise = Landkreise.find_by_ids(landkreise_ids)
+    if not landkreise:
+        landkreise = LANDKREISE
     days = 0
     with contextlib.suppress(ValueError):
         method = 8 if method is None else int(method)
         days = method
-    binary_excels = await get_input(fixed_values, days, input_file)
-    inzidenzen_result, result_hosp = read_excel(binary_excels[0], landkreise, fixed_values, days, False)
+    binary_excels = await get_input(fix, days, input_file)
+    inzidenzen_result, result_hosp = read_excel(binary_excels[0], landkreise, fix, days, False)
     if len(binary_excels) == 2:
-        inzidenzen_result2, _ = read_excel(binary_excels[1], landkreise, fixed_values, days, True)
+        inzidenzen_result2, _ = read_excel(binary_excels[1], landkreise, fix, days, True)
         inzidenzen_result = inzidenzen_result.join(inzidenzen_result2)
 
     if isinstance(method, int):
-        prepare_and_show_graph(inzidenzen_result, result_hosp, output_file, fixed_values)
+        prepare_and_show_graph(inzidenzen_result, result_hosp, save, fix)
     else:
-        show_boxplot(inzidenzen_result.T, method, output_file)
+        show_boxplot(inzidenzen_result.T, method, save)
+
+
+@click.command("history")
+@click.argument("landkreise_ids", nargs=-1, type=int)
+@click.option("-fix/-adjusted", default=False)
+@click.option("-s", "--save", help="Saves as png with given filename. Default will show it instead.")
+@click.option(
+    "-m",
+    "--method",
+    help="If set to an int, will use these as days to plot. If set to 'w' or 'week', will plot all weeks. "
+    "If set to 'm' or 'month', will plot all months.",
+)
+@click.option(
+    "-i", "--input_file", help="If set will use this as input-excel file. '-fix' parameter must be set accordingly."
+)
+async def history_wrapped(
+    landkreise_ids: Collection[int],
+    fix: bool = False,
+    save: Optional[str] = None,
+    method: Union[str, int] = 8,
+    input_file: Optional[str] = None,
+) -> None:
+    """Corona Inzidenzzahlen Historie"""
+    await get_history(landkreise_ids, fix, save, method, input_file)
 
 
 def dataframe_max(df: pd.DataFrame, default=0):
@@ -213,12 +240,12 @@ def save_or_show(output_file: Optional[str] = None, fig=None):
         plt.show()
 
 
-def _get_colors(min_values: Collection[int], max_values: Collection[int], count: int):
+def _get_colors(min_values: Collection[int], max_values: Collection[int], count: int) -> list[str]:
     result = np.linspace(min_values, max_values, count)
     return [f"#{int(round(res[0])):02x}{int(round(res[1])):02x}{int(round(res[2])):02x}" for res in result]
 
 
-def get_colors(df1, df2):
+def get_colors(df1: pd.DataFrame, df2: pd.DataFrame) -> tuple[dict[Landkreise, str], dict[str, str]]:
     # colors
     all_colors = pd.DataFrame(
         (
@@ -246,8 +273,10 @@ def get_colors(df1, df2):
     color_indexes = all_colors.index.levels[0]
 
     all_lks = df1.index.drop(DEUTSCHLAND)
-    result_lks = {}
-    result_bundesland = {}
+    if not_set_bundesland := tuple(lk for lk in all_lks if not lk.land):
+        raise ValueError(f"The following Landkreise do not have a Bundesland set: {not_set_bundesland}")
+    result_lks: dict[Landkreise, str] = {}
+    result_bundesland: dict[str, str] = {}
     for i, bundesland in enumerate(bundeslaender):
         color_name = color_indexes[i % colors_count]
         color_df = all_colors.loc[color_name]
@@ -317,7 +346,13 @@ def add_bg_colors(ax, max_val, hgrid_lines, column_count: int):
         ax.fill_between(bg_color[0], bg_color[1], bg_color[2], alpha=0.2, linewidth=0, color=bg_color[3])
 
 
-def fill_ax_complete(ax, df, label, get_lines, color=None):
+def fill_ax_complete(
+    ax,
+    df: pd.DataFrame,
+    label: str,
+    get_lines: Callable[[float], list[int]],
+    color: Union[None, dict[str, str], dict[Landkreise, str]] = None,
+) -> None:
     max_val = dataframe_max(df)
     hgrid_lines = get_lines(max_val)
     add_bg_colors(ax, max_val, hgrid_lines, len(df.columns))
@@ -413,29 +448,12 @@ def show_boxplot(df: pd.DataFrame, method: str, output_file: Optional[str] = Non
     save_or_show(output_file)
 
 
-if __name__ == "__main__":
-    PARSER = argparse.ArgumentParser(description="Corona Inzidenzzahlen Historie")
-    PARSER.add_argument("-fix", action="store_true", help="Uses fixed values instead of corrected")
-    PARSER.add_argument("-s", "--save", help="Saves as png with given filename. Default will just show it.")
-    PARSER.add_argument(
-        "-t",
-        "--type",
-        help="If set to an int, will use these as days to plot. If set to 'w' or 'week', will plot all weeks. "
-        "If set to 'm' or 'month', will plot all months.",
-    )
-    PARSER.add_argument(
-        "-i", "--input", help="If set will use this as input-excel file. '-fix' parameter must be set accordingly."
-    )
+LANDKREISE = (
+    Landkreise.WOLFSBURG,
+    Landkreise.OBERBERGISCHER_KREIS,
+    Landkreise.KOELN,
+    Landkreise.NORDFRIESLAND,
+)
 
-    ARGS = PARSER.parse_args()
-    FIX = ARGS.fix
-    SAVE = ARGS.save
-    TYPE = ARGS.type
-    INPUT = ARGS.input
-    LANDKREISE = (
-        Landkreise.WOLFSBURG,
-        Landkreise.OBERBERGISCHER_KREIS,
-        Landkreise.KOELN,
-        Landkreise.NORDFRIESLAND,
-    )
-    asyncio.run(get_history(LANDKREISE, FIX, SAVE, TYPE, INPUT))
+if __name__ == "__main__":
+    history_wrapped(_anyio_backend="asyncio")

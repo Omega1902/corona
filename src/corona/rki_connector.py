@@ -101,7 +101,7 @@ class Connector:
         for task in tasks:
             yield await task
 
-    async def get_all_cases(self):
+    async def get_all_cases(self) -> list[CasesResult]:
         async with self.get(self.url_all) as response:
             response_json = await response.json()
         LOG.debug("Loaded: %s", str(response_json))

@@ -23,4 +23,4 @@ omit =
     # omit anything in a .local directory anywhere
     */.local/*
     # Omit test files in the report
-    test_*
+    tests/*

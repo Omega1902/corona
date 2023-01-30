@@ -8,6 +8,8 @@ aiohttp = "*"
 pandas = "==1.5.3"
 matplotlib = "*"
 openpyxl = "*"
+asyncclick = "*"
+anyio = "*"
 corona = {editable = true, path = "."}
 
 [dev-packages]

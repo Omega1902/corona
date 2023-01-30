@@ -1,7 +1,9 @@
-import argparse
 import asyncio
 import logging
+from collections.abc import Collection
 from typing import AsyncIterable, Iterable, Optional
+
+import asyncclick as click
 
 from corona.landkreise import Landkreise
 from corona.rki_connector import CasesResult, Connector
@@ -99,54 +101,65 @@ async def get_and_print_landkreise_tasks(con, landkreise: Iterable[Landkreise], 
         await print_result_async(async_generator)
 
 
-async def main(
-    landkreise: Optional[Iterable[Landkreise]] = None, keep_order: bool = False, con: Optional[Connector] = None
+async def today(
+    landkreise_ids: Optional[Collection[int]] = None,
+    all: bool = False,
+    keep_order: bool = False,
+    con: Optional[Connector] = None,
 ) -> None:
+    """Corona Inzidenzzahlen von heute"""
+    regions = DEFAULT_REGIONS
+    if all:
+        regions = None
+    elif landkreise_ids:
+        regions = Landkreise.find_by_ids(landkreise_ids)
     con_needs_opening = False
     if con is None:
         con = Connector()
         con_needs_opening = True
-    if landkreise is None:
+    if regions is None:
         result = await handle_context_manager(con_needs_opening, con, con.get_all_cases)
         sort_by_name = lambda city: city.city_name
         result.sort(key=sort_by_name)
         print_result(result, True)
     else:
-        await handle_context_manager(
-            con_needs_opening, con, get_and_print_landkreise_tasks, con, landkreise, keep_order
-        )
+        await handle_context_manager(con_needs_opening, con, get_and_print_landkreise_tasks, con, regions, keep_order)
     await asyncio.sleep(0.15)  # prevents "RuntimeError: Event loop is closed"
 
 
-async def wrapped_main(default_regions: Iterable[Landkreise]) -> None:
-    parser = argparse.ArgumentParser(description="Corona Inzidenzzahlen")
-    parser.add_argument(
-        "-ids",
-        "--region_ids",
-        type=int,
-        nargs="*",
-        help="Region Ids für Regionen die geprüft werden sollen. Default verwendet im Skript hintelegte Ids. "
-        "Es funktionieren nur bekannte ids.",
-    )
-    parser.add_argument(
-        "-a",
-        "--all",
-        action="store_true",
-        help="Gibt alle Inzidenzzahlen inkl Region IDs aus. Ignoriert die anderen Parameter.",
-    )
-    parser.add_argument(
-        "-o", "--force_order", action="store_true", help="Ausgabe ist in der selben Reihenfolge wie die IDs."
-    )
+@click.command("today")
+@click.argument("landkreise_ids", nargs=-1, type=int)
+@click.option(
+    "-a",
+    "--all",
+    is_flag=True,
+    default=False,
+    help="Gibt alle Inzidenzzahlen inkl Region IDs aus. Ignoriert die anderen Parameter.",
+)
+@click.option(
+    "-o", "--keep_order", is_flag=True, default=False, help="Ausgabe ist in der selben Reihenfolge wie die IDs."
+)
+async def today_wrapped(
+    landkreise_ids: Optional[Collection[int]] = None,
+    all: bool = False,
+    keep_order: bool = False,
+) -> None:
+    """Corona Inzidenzzahlen von heute"""
+    await today(landkreise_ids, all, keep_order)
 
-    args = parser.parse_args()
 
-    if args.region_ids is not None:
-        default_regions = Landkreise.find_by_ids(args.region_ids)
-    if args.all:
-        default_regions = None
-
-    await main(default_regions, args.force_order)
-
+DEFAULT_REGIONS = (
+    Landkreise.BERLIN_MITTE,
+    Landkreise.HANNOVER,
+    Landkreise.AURICH,
+    Landkreise.NORDFRIESLAND,
+    Landkreise.LUEBECK,
+    Landkreise.HAMBURG,
+    Landkreise.WOLFSBURG,
+    Landkreise.OBERBERGISCHER_KREIS,
+    Landkreise.KOELN,
+    Landkreise.OSTHOLSTEIN,
+)
 
 if __name__ == "__main__":
     logging.basicConfig(
@@ -154,17 +167,4 @@ if __name__ == "__main__":
         format="%(asctime)s %(name)-22s %(levelname)-8s %(message)s",
     )
 
-    REGIONS = (
-        Landkreise.BERLIN_MITTE,
-        Landkreise.HANNOVER,
-        Landkreise.AURICH,
-        Landkreise.NORDFRIESLAND,
-        Landkreise.LUEBECK,
-        Landkreise.HAMBURG,
-        Landkreise.WOLFSBURG,
-        Landkreise.OBERBERGISCHER_KREIS,
-        Landkreise.KOELN,
-        Landkreise.OSTHOLSTEIN,
-    )
-
-    asyncio.run(wrapped_main(REGIONS))
+    today_wrapped(_anyio_backend="asyncio")

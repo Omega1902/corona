@@ -7,8 +7,8 @@ from typing import Optional
 from unittest.mock import AsyncMock, MagicMock, NonCallableMock
 
 from corona.landkreise import Landkreise
-from corona.rki_connector import Connector
-from corona.today import CasesResult, main
+from corona.rki_connector import CasesResult, Connector
+from corona.today import today
 
 from .testing_utils import get_testdata_text
 
@@ -41,19 +41,22 @@ def get_city(url: str, *args, **kwargs):
 
 
 class TestCorona(unittest.IsolatedAsyncioTestCase):
-    landkreise = (
-        Landkreise.BERLIN_MITTE,
-        Landkreise.HANNOVER,
-        Landkreise.AURICH,
-        Landkreise.NORDFRIESLAND,
-        Landkreise.LUEBECK,
-        Landkreise.HAMBURG,
-        Landkreise.WOLFSBURG,
-        Landkreise.OBERBERGISCHER_KREIS,
-        Landkreise.KOELN,
-        Landkreise.OSTHOLSTEIN,
-    )
-    ordered_result = """Datum: 27.04.2022
+    @classmethod
+    def setUpClass(cls):
+        cls.landkreise = (
+            Landkreise.BERLIN_MITTE,
+            Landkreise.HANNOVER,
+            Landkreise.AURICH,
+            Landkreise.NORDFRIESLAND,
+            Landkreise.LUEBECK,
+            Landkreise.HAMBURG,
+            Landkreise.WOLFSBURG,
+            Landkreise.OBERBERGISCHER_KREIS,
+            Landkreise.KOELN,
+            Landkreise.OSTHOLSTEIN,
+        )
+        cls.landkreise_ids = tuple(lk.id for lk in cls.landkreise)
+        cls.ordered_result = """Datum: 27.04.2022
 Landkreis            Inzidenz
 Berlin Mitte           498.16
 Region Hannover        880.87
@@ -104,22 +107,22 @@ Ostholstein           1891.44
         result = [x async for x in generator]
         self.assertEqual(result, expected_result)
 
-    async def test_main_ordered(self):
+    async def test_today_ordered(self):
         self.con._session.get = MagicMock(side_effect=get_city)
         capturedOutput = StringIO()
         sys.stdout = capturedOutput
         try:
-            await main(self.landkreise, keep_order=True, con=self.con)
+            await today(self.landkreise_ids, keep_order=True, con=self.con)
         finally:
             sys.stdout = sys.__stdout__
         self.assertEqual(capturedOutput.getvalue(), self.ordered_result)
 
-    async def test_main_unordered(self):
+    async def test_today_unordered(self):
         self.con._session.get = MagicMock(side_effect=get_city)
         capturedOutput = StringIO()
         sys.stdout = capturedOutput
         try:
-            await main(self.landkreise, keep_order=False, con=self.con)
+            await today(self.landkreise_ids, keep_order=False, con=self.con)
         finally:
             sys.stdout = sys.__stdout__
         result_list = capturedOutput.getvalue().split("\n")

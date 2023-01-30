@@ -11,12 +11,31 @@ Aktuell überprüft sehr viele Menschen (so auch ich) annähernd täglich die Co
 
 ## Vorraussetzungen
 
-Das skript wurde mit python versionen von 3.9 bis 3.11 entwickelt und getestet.
+Das Skript wurde mit Python Versionen von 3.9 bis 3.11 entwickelt und getestet.
 
+### Installation
+
+```pip install .```
+
+### Nutzung
 
 ```
+corona today
+corona history
+corona --help
+```
+
+## Entwickeln
+
+Das Skript wird in Pipenv entwickelt, wer weiter entwickeln möchte sollte das möglichst auch nutzen:
+
+```
+# install pipenv
 pip install pipenv
-pipenv install
+# create virtual environment and install all dependencies
+pipenv install -d
+# enter virtual environment
+pipenv shell
 ```
 
 ## Danksagung
