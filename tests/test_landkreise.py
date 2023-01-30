@@ -24,19 +24,18 @@ class TestLandkreise(unittest.IsolatedAsyncioTestCase):
     def test_find_by_id(self):
         for landkreis in Landkreise:
             self.assertEqual(Landkreise.find_by_id(landkreis.value), landkreis)
-
-        self.assertIsNone(Landkreise.find_by_id(-1))
+        self.assertRaises(ValueError, Landkreise.find_by_id, -1)
 
     def test_find_by_ids(self):
         tests = [
-            {"test": [lk.id for lk in Landkreise] + [-1], "expect": self.landkreise_list},
             {"test": (lk.id for lk in Landkreise), "expect": self.landkreise_list},
-            {"test": tuple((-1, -2)), "expect": []},
+            {"test": tuple(), "expect": []},
         ]
         for test in tests:
             with self.subTest(test=test):
                 landkreise = Landkreise.find_by_ids(test["test"])
                 self.assertEqual(landkreise, test["expect"])
+        self.assertRaises(ValueError, Landkreise.find_by_ids, [1, 2, -1])
 
     def test_find_by_lk_name(self):
         for landkreis in Landkreise:

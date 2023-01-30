@@ -9,7 +9,7 @@ from corona.rki_connector import CasesResult, Connector
 LOG = logging.getLogger(__name__)
 
 
-async def print_result_async(cities: AsyncIterable[CasesResult], column1_width: int = 20):
+async def print_result_async(cities: AsyncIterable[CasesResult], column1_width: int = 20) -> None:
     date_string = None
     print_format = "{:" + str(column1_width) + "} {:>8}"
     async for city in cities:
@@ -22,7 +22,7 @@ async def print_result_async(cities: AsyncIterable[CasesResult], column1_width: 
         print(print_format.format(city.city_name, f"{city.cases7_per_100k:3.2f}"))
 
 
-async def print_result(result: AsyncIterable[CasesResult], print_id: bool = False):
+async def print_result_async2(result: AsyncIterable[CasesResult], print_id: bool = False) -> None:
     to_print = []
     date_string = None
     async for city in result:
@@ -45,7 +45,30 @@ async def print_result(result: AsyncIterable[CasesResult], print_id: bool = Fals
         print_table(header, to_print)
 
 
-def print_table(headers: list[str], table: list[list[str]]):
+def print_result(result: Iterable[CasesResult], print_id: bool = False) -> None:
+    to_print = []
+    date_string = None
+    for city in result:
+        if date_string is None:
+            date_string = city.updated[:10]
+        elif not city.updated.startswith(date_string):
+            raise RuntimeError("Different updated dates!")
+        temp = []
+        if print_id:
+            temp.append(f"{city.county} ({city.region_id})")
+        else:
+            temp.append(city.city_name)
+        temp.append(f"{city.cases7_per_100k:3.2f}")
+        to_print.append(temp)
+    if date_string is None:
+        print("Keine Daten verfügbar")
+    else:
+        print(f"Datum: {date_string}")
+        header = ["Landkreis", "Inzidenz"]
+        print_table(header, to_print)
+
+
+def print_table(headers: list[str], table: list[list[str]]) -> None:
     print_formats = []
     for i, header in enumerate(headers):
         size = max(len(x[i]) for x in table)
@@ -68,17 +91,17 @@ async def handle_context_manager(con_needs_opening: bool, con: Connector, coro_f
     return await coro_func(*args, **kwargs)
 
 
-async def get_and_print_landkreise_tasks(con, landkreise: Iterable[Landkreise], force_order: bool):
+async def get_and_print_landkreise_tasks(con, landkreise: Iterable[Landkreise], force_order: bool) -> None:
     async_generator = con.get_cases(landkreise, force_order)
     if force_order:
-        await print_result(async_generator)
+        await print_result_async2(async_generator)
     else:
         await print_result_async(async_generator)
 
 
 async def main(
     landkreise: Optional[Iterable[Landkreise]] = None, keep_order: bool = False, con: Optional[Connector] = None
-):
+) -> None:
     con_needs_opening = False
     if con is None:
         con = Connector()
@@ -87,7 +110,7 @@ async def main(
         result = await handle_context_manager(con_needs_opening, con, con.get_all_cases)
         sort_by_name = lambda city: city.city_name
         result.sort(key=sort_by_name)
-        await print_result(result, True)
+        print_result(result, True)
     else:
         await handle_context_manager(
             con_needs_opening, con, get_and_print_landkreise_tasks, con, landkreise, keep_order
@@ -95,7 +118,7 @@ async def main(
     await asyncio.sleep(0.15)  # prevents "RuntimeError: Event loop is closed"
 
 
-async def wrapped_main(default_regions: Iterable[Landkreise]):
+async def wrapped_main(default_regions: Iterable[Landkreise]) -> None:
     parser = argparse.ArgumentParser(description="Corona Inzidenzzahlen")
     parser.add_argument(
         "-ids",

@@ -459,29 +459,31 @@ class Landkreise(Enum):
         self._land = land
 
     @property
-    def land(self):
+    def land(self) -> Optional[str]:
         if not self._land:
             LOG.warning("%s does not have a land configured!", self.lk_name)
         return self._land
 
     @property
-    def lk_name(self):
+    def lk_name(self) -> str:
         return self._lk_name
 
     @property
-    def id(self):
+    def id(self) -> int:
         return self._value_
 
     @staticmethod
-    def find_by_id(lk_id: int) -> Optional["Landkreise"]:
+    def find_by_id(lk_id: int) -> "Landkreise":
         result = tuple(lk for lk in Landkreise if lk.id == lk_id)
-        return None if len(result) != 1 else result[0]
+        if len(result) != 1:
+            raise ValueError(f"lk_id {lk_id} does not exist")
+        return result[0]
 
     @classmethod
     def find_by_ids(cls, lk_ids: Iterable[int]) -> list["Landkreise"]:
         """Will return a list of all Landkreise of the given ids.
-        If an id does not exist, the None paramter returned by find_by_id will not be contained in this list.
-        If lk_ids is None or does not contain a valid lk_id, the result will be an empty list.
+        Raises ValueError if an id does not exist
+        If lk_ids or empty, the result will be an empty list.
 
         Args:
             lk_ids (Iterable[int]): lk_ids to convert to Landkreise
@@ -489,12 +491,7 @@ class Landkreise(Enum):
         Returns:
             list[Landkreise]: list of Landkreise
         """
-        result = []
-        for lk_id in lk_ids:
-            landkreis = cls.find_by_id(lk_id)
-            if landkreis is not None:
-                result.append(landkreis)
-        return result
+        return list(map(cls.find_by_id, lk_ids))
 
     @staticmethod
     def find_by_lk_name(lk_name) -> Optional["Landkreise"]:
@@ -514,5 +511,5 @@ class Landkreise(Enum):
         """
         return (landkreis for lk_name in lk_names if (landkreis := cls.find_by_lk_name(lk_name)) is not None)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
